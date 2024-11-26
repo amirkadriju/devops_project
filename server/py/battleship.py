@@ -132,7 +132,8 @@ class Battleship(Game):
         opponent = self.state.players[opponent_idx]
 
         if action.action_type == ActionType.SHOOT:
-            # TODO: @ Fabian & Jach add shooting & hitting function here
+            self.shoot(action)  # Handle shooting logic
+            
 
             
             # Check if all opponent's ships are sunk
@@ -141,6 +142,41 @@ class Battleship(Game):
                 self.state.winner = self.state.idx_player_active
                 print(f"{active_player.name} wins the game!")
                 return  # No further actions needed as the game is over
+            
+            # Automatically switch to the next player's turn
+            self.state.idx_player_active = opponent_idx
+
+            # Automatically shoot for the next player
+            self.auto_shoot()
+            
+    def auto_shoot(self) -> None:
+        """Automatically perform a shooting action for the active player."""
+        active_player = self.state.players[self.state.idx_player_active]
+        opponent_idx = (self.state.idx_player_active + 1) % len(self.state.players)
+        opponent = self.state.players[opponent_idx]
+
+        # Generate all possible grid coordinates
+        rows = "ABCDEFGHIJ"
+        columns = [str(i) for i in range(1, 11)]
+        all_positions = [f"{row}{col}" for row in rows for col in columns]
+
+        # Filter out already fired shots
+        valid_targets = list(set(all_positions) - set(active_player.shots))
+
+        if not valid_targets:
+            print(f"{active_player.name} has no valid targets left!")
+            return
+
+        # Select a random target
+        random_target = random.choice(valid_targets)
+
+        # Create a shooting action
+        shoot_action = BattleshipAction(action_type=ActionType.SHOOT, ship_name=None, location=[random_target])
+        print(f"{active_player.name} fires at {random_target}!")
+
+        # Apply the shooting action
+        self.apply_action(shoot_action)
+    
 
         if action.action_type == ActionType.SET_SHIP:
             # Check for overlap
@@ -181,11 +217,16 @@ class Battleship(Game):
 class RandomPlayer(Player):
 
     def select_action(self, state: BattleshipGameState, actions: List[BattleshipAction]) -> Optional[BattleshipAction]:
-        """ Given masked game state and possible actions, select the next action """
-        if len(actions) > 0:
+        """Automatically select an action for the player."""
+        if state.phase == GamePhase.RUNNING:
+            # Automatically shoot for active player
+            return None  # `auto_shoot` already handles the shooting
+        elif len(actions) > 0:
+            # Randomly place ships during setup
             return random.choice(actions)
         return None
 
+        
 
 if __name__ == "__main__":
 
