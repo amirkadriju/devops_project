@@ -161,10 +161,34 @@ class Dog(Game):
 
     def get_list_action(self) -> List[Action]:
         """ Get a list of possible actions for the active player """
-        return []  # Return other actions as needed during gameplay 
+        actions = []
+        active_player = self.state.list_player[self.state.idx_player_active]
+
+        # For each marble in the player's marbles
+        for idx, marble in enumerate(active_player.list_marble):
+            if marble.is_save: 
+                for card in active_player.list_card:
+                    if card.rank == 'A':
+                        pos_from = int(marble.pos)
+                        actions.append(Action(pos_from=pos_from, pos_to=pos_from + 1))
+                        actions.append(Action(pos_from=pos_from, pos_to=pos_from + 11))
+
+
+        return actions 
 
     def apply_action(self, action: Action) -> None:
         """ Apply the given action to the game """
+        active_player = self.state.list_player[self.state.idx_player_active]
+        if action.card and action.card.rank == 'A': 
+            marble = active_player.list_marble[action.pos_from]
+
+            marble.pos = str(action.pos_to)
+
+            active_player.list_card.remove(action.card)
+            self.state.list_card_discard.append(action.card)
+
+            self.state.idx_player_active = (self.state.idx_player_active + 1) % self.state.cnt_player
+        
         pass
 
     def get_player_view(self, idx_player: int) -> GameState:

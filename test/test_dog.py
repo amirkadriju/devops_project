@@ -2,7 +2,7 @@
 
 
 import pytest
-from server.py.dog import Dog, GamePhase
+from server.py.dog import Dog, GamePhase, Card
 
 
 def test_dog_initialization():
@@ -47,6 +47,45 @@ def test_dog_initialization():
     for player in game.state.list_player:
         player_positions = [marble.pos for marble in player.list_marble]
         assert player_positions == positions[player.name], f"{player.name} marbles should be in the correct starting positions."
+
+def test_move_with_ACE_from_start():
+    """Test moving a marble with an Ace card from the start position."""
+
+    # Initialize the game
+    game = Dog()
+
+    # Setup: Move the first marble of the active player to the start position (e.g., "0")
+    active_player = game.state.list_player[game.state.idx_player_active]
+    active_player.list_marble[0].pos = "0"
+
+    # Verify the marble is at position "0"
+    assert active_player.list_marble[0].pos == "0", "Marble should be at position 0."
+
+    # Assign an Ace card (Ace of Spades) to the active player's hand
+    ace_card = Card(suit='♠', rank='A')
+    active_player.list_card = [ace_card]
+
+    # Verify that the player has the Ace card
+    assert active_player.list_card[0].rank == 'A' and active_player.list_card[0].suit == '♠', \
+        "Player should have the Ace of Spades in hand."
+
+    # Get valid actions for the Ace card
+    valid_actions = game.get_list_action()
+
+    # Debug: Print the valid actions for verification
+    print(f"Valid actions: {[f'From {action.pos_from} to {action.pos_to}' for action in valid_actions]}")
+
+    # Expected positions to move to with an Ace card from position "0" (1 and 11)
+    expected_positions = ["1", "11"]
+
+    # Verify that the valid actions include moving to positions 1 and 11
+    for pos in expected_positions:
+        action_found = any(action.pos_to == pos for action in valid_actions)
+        assert action_found, f"Expected move to position {pos} not found for Ace card."
+
+    # Verify that the move actions originate from position "0"
+    assert all(action.pos_from == "0" for action in valid_actions if action.pos_to in expected_positions), \
+        "All moves should originate from position 0 for the Ace card."
 
 
 if __name__ == "__main__":
