@@ -205,7 +205,8 @@ class Dog(Game):
 
                         if self.is_valid_move(pos_from, pos_to):
                             action = Action(card=card, pos_from=pos_from, pos_to=pos_to)
-                            list_action.append(action)
+                            if action not in list_action:  # Check for duplicates
+                                list_action.append(action)
 
         return list_action
 
