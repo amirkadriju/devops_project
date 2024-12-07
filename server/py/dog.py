@@ -26,7 +26,6 @@ class PlayerState(BaseModel):
     name: str                  # name of player
     list_card: List[Card]      # list of cards
     list_marble: List[Marble]  # list of marbles
-    teamMate: str
 
 
 class Action(BaseModel):
@@ -123,10 +122,10 @@ class Dog(Game):
             idx_player_started=random.randint(0, 3),  # Randomly select start player
             idx_player_active=0,
             list_player=[
-                PlayerState(name="Blue", list_card=[], list_marble=blue_marbles, teamMate = "Green"),
-                PlayerState(name="Green", list_card=[], list_marble=green_marbles, teamMate = "Blue"),
-                PlayerState(name="Red", list_card=[], list_marble=red_marbles, teamMate = "Yellow"),
-                PlayerState(name="Yellow", list_card=[], list_marble=yellow_marbles, teamMate= "Red"),
+                PlayerState(name="Blue", list_card=[], list_marble=blue_marbles),
+                PlayerState(name="Green", list_card=[], list_marble=green_marbles),
+                PlayerState(name="Red", list_card=[], list_marble=red_marbles),
+                PlayerState(name="Yellow", list_card=[], list_marble=yellow_marbles),
             ],
             list_card_draw=shuffled_cards,
             list_card_discard=[],
@@ -139,25 +138,11 @@ class Dog(Game):
         for player in self.state.list_player:
             player.list_card = [self.state.list_card_draw.pop() for _ in range(num_cards_per_player)]
 
-        
-        # Exchange card with teammate
-        if self.state.bool_card_exchanged:
-            for player in self.state.list_player:
-                for teammate in self.state.list_player:
-                    if teammate.name == player.teamMate and player.name < teammate.name: 
-                        card_to_exchange = random.choice(player.list_card)
-                        player.list_card.remove(card_to_exchange)
-                        card_from_teammate = random.choice(teammate.list_card)
-                        teammate.list_card.remove(card_from_teammate)
-                        teammate.list_card.append(card_to_exchange)
-                        player.list_card.append(card_from_teammate)
-            self.state.bool_card_exchanged = False
-
         # Transition to the running phase, since we're starting the game directly
         self.state.phase = GamePhase.RUNNING
         self.state.cnt_round = 1
         self.state.idx_player_active = self.state.idx_player_started
-        self.state.bool_card_exchanged = True
+        self.state.bool_card_exchanged = False
     
     def reshuffle_if_empty(self):
         """ Reshuffle the discard pile into the draw pile when empty """
@@ -227,7 +212,13 @@ class Dog(Game):
 
                         if self.is_valid_move(pos_from, pos_to):
                             action = Action(card=card, pos_from=pos_from, pos_to=pos_to)
-                            list_action.append(action)
+                            if (action not in list_action):
+                                list_action.append(action)
+
+        # For Benchmark test 044. It was green bevor, now not anymore
+        # for card in player.list_card:
+        #     action = Action(card=card, pos_from=None, pos_to=None)
+        #     list_action.append(action)
 
         return list_action
 
@@ -252,6 +243,18 @@ class Dog(Game):
             marble_to_move.pos = action.pos_to
             player.list_card.remove(action.card)
             self.state.list_card_discard.append(action.card)
+
+    def exchange_cards(self):
+        # Exchange the first card with teammate
+        if not self.state.bool_card_exchanged:
+            for idx_player in range(len(self.state.list_player)):
+                idx_player_partner = (idx_player + 2) % len(self.state.list_player) 
+                player = self.state.list_player[idx_player]
+                teammate = self.state.list_player[idx_player_partner]
+                card_to_exchange = player.list_card[0]
+                player.list_card.remove(card_to_exchange)
+                teammate.list_card.append(card_to_exchange)
+        self.state.bool_card_exchanged = True
         
     def get_player_view(self, idx_player: int) -> GameState:
         """ Get the masked state for the active player (e.g. the oppontent's cards are face down)"""
