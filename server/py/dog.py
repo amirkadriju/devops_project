@@ -200,11 +200,21 @@ class Dog(Game):
         else:
             print("No Active Card")
         print("\n============================\n")
-
+    
     def get_list_action(self) -> List[Action]:
-        """ Get a list of possible actions for the active player """
+        """ 
+        Get a list of possible actions for the active player.
+        Returns: actions -> list
+        """
         list_action = []
-        player = self.state.list_player[self.state.idx_player_active]
+        state = self.get_state()
+        player = state.list_player[state.idx_player_active]
+
+        # Check for cards that can move a marble out
+        for card in player.list_card:
+            if card.rank in ['K', 'A', 'JKR']:  # King, Ace, and Joker meet Start condition
+                # Create an action for each valid card
+                actions.append(Action(card=card, pos_from=64, pos_to=0))  # Replace with actual positions if needed
 
         # Check if Player can move forward (NO SPECIAL CARDS HERE)
         for card in player.list_card:
