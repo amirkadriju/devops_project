@@ -26,6 +26,7 @@ class PlayerState(BaseModel):
     name: str                  # name of player
     list_card: List[Card]      # list of cards
     list_marble: List[Marble]  # list of marbles
+    teamMate: str
 
 
 class Action(BaseModel):
@@ -98,6 +99,15 @@ class GameState(BaseModel):
             return 12
         elif rank in ['K']:
             return 13
+    
+    def is_valid_move(self, pos_from: int, pos_to: int) -> bool:
+        """ Validate if a move from pos_from to pos_to is allowed """
+        # check if own marble occupies spot
+        for marble in self.state.list_player[self.state.idx_player_active].list_marble:
+            if marble.pos == pos_to:
+                return False
+
+        return True
 
 
 class Dog(Game):
@@ -122,16 +132,15 @@ class Dog(Game):
             idx_player_started=random.randint(0, 3),  # Randomly select start player
             idx_player_active=0,
             list_player=[
-                PlayerState(name="Blue", list_card=[], list_marble=blue_marbles),
-                PlayerState(name="Green", list_card=[], list_marble=green_marbles),
-                PlayerState(name="Red", list_card=[], list_marble=red_marbles),
-                PlayerState(name="Yellow", list_card=[], list_marble=yellow_marbles),
+                PlayerState(name="Blue", list_card=[], list_marble=blue_marbles, teamMate = "Green"),
+                PlayerState(name="Green", list_card=[], list_marble=green_marbles, teamMate = "Blue"),
+                PlayerState(name="Red", list_card=[], list_marble=red_marbles, teamMate = "Yellow"),
+                PlayerState(name="Yellow", list_card=[], list_marble=yellow_marbles, teamMate= "Red"),
             ],
             list_card_draw=shuffled_cards,
             list_card_discard=[],
             card_active=None
         )
-        
     
          # Deal 6 cards to each player directly in the init
         num_cards_per_player = 6  # Example number of cards per player
@@ -142,7 +151,20 @@ class Dog(Game):
         self.state.phase = GamePhase.RUNNING
         self.state.cnt_round = 1
         self.state.idx_player_active = self.state.idx_player_started
-        self.state.bool_card_exchanged = False
+        self.state.bool_card_exchanged = True
+
+        # Exchange card with teammate
+        if self.state.bool_card_exchanged:
+            for player in self.state.list_player:
+                for teammate in self.state.list_player:
+                    if teammate.name == player.teamMate and player.name < teammate.name: 
+                        card_to_exchange = random.choice(player.list_card)
+                        player.list_card.remove(card_to_exchange)
+                        card_from_teammate = random.choice(teammate.list_card)
+                        teammate.list_card.remove(card_from_teammate)
+                        teammate.list_card.append(card_to_exchange)
+                        player.list_card.append(card_from_teammate)
+            self.state.bool_card_exchanged = False
     
     def reshuffle_if_empty(self):
         """ Reshuffle the discard pile into the draw pile when empty """
@@ -195,12 +217,36 @@ class Dog(Game):
         state = self.get_state()
         player = state.list_player[state.idx_player_active]
 
+        # Define kennel ranges and starting positions
+        kennel_positions = {
+            "Blue": range(64, 68),
+            "Green": range(72, 76),
+            "Red": range(80, 84),
+            "Yellow": range(88, 92),
+        }
+        starting_positions = {
+            "Blue": 0,
+            "Green": 16,
+            "Red": 32,
+            "Yellow": 48,
+        }
+        player_kennel = kennel_positions[player.name]
+        player_start_position = starting_positions[player.name]
+
         # Check for cards that can move a marble out
         for card in player.list_card:
-            if card.rank in ['K', 'A', 'JKR']:  # King, Ace, and Joker meet Start condition
-                # Create an action for each valid card
-                actions.append(Action(card=card, pos_from=64, pos_to=0))  # Replace with actual positions if needed
-
+            if card.rank in ['K', 'A', 'JKR']:
+                # Find the marble with the lowest position in the kennel
+                marble_to_move = min(
+                    (marble for marble in player.list_marble if int(marble.pos) in player_kennel),
+                    key=lambda m: int(m.pos),
+                    default=None
+                )
+                if marble_to_move:
+                    list_action.append(
+                        Action(card=card, pos_from=int(marble_to_move.pos), pos_to=player_start_position)
+                    )
+        
         # Check if Player can move forward (NO SPECIAL CARDS HERE)
         for card in player.list_card:
             if card.rank in ['2', '3', '4', '5', '6', '8', '9', '10', 'Q']:
@@ -211,14 +257,9 @@ class Dog(Game):
                         pos_to = (pos_from + steps)
 
                         if self.is_valid_move(pos_from, pos_to):
-                            action = Action(card=card, pos_from=pos_from, pos_to=pos_to)
-                            if (action not in list_action):
-                                list_action.append(action)
-
-        # For Benchmark test 044. It was green bevor, now not anymore
-        # for card in player.list_card:
-        #     action = Action(card=card, pos_from=None, pos_to=None)
-        #     list_action.append(action)
+                            list_action.append(
+                                Action(card=card, pos_from=pos_from, pos_to=pos_to)
+                            )
 
         return list_action
 
@@ -272,10 +313,10 @@ class RandomPlayer(Player):
 
 if __name__ == '__main__':
     game = Dog()
-    game.print_state()
+    '''game.print_state()
     actions = game.get_list_action()
     print(actions)
     start_game_action = next((a for a in actions if a.action_type == ActionType.GAME_START), None)
     if start_game_action:
         game.apply_action(start_game_action)
-    game.print_state()
+    game.print_state()'''
