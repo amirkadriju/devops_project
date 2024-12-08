@@ -276,7 +276,10 @@ class Dog(Game):
         """ Apply the given action to the game """
 
         if action is None:
-            self.reshuffle_if_empty()
+            # Update turn
+            self.state.idx_player_active = (self.state.idx_player_active + 1) % self.state.cnt_player
+            if self.state.idx_player_active == self.state.idx_player_started:
+                self.end_round()
             return
 
         player = self.state.list_player[self.state.idx_player_active]
@@ -298,6 +301,9 @@ class Dog(Game):
             marble_to_move.pos = action.pos_to
             player.list_card.remove(action.card)
             self.state.list_card_discard.append(action.card)
+            self.state.idx_player_active = (self.state.idx_player_active + 1) % self.state.cnt_player
+            if self.state.idx_player_active == self.state.idx_player_started:
+                self.end_round()
 
     def exchange_cards(self):
         # Exchange the first card with teammate
@@ -315,6 +321,31 @@ class Dog(Game):
         """ Get the masked state for the active player (e.g. the oppontent's cards are face down)"""
         return self.state
 
+    def end_round(self):
+        self.state.cnt_round += 1
+        self.state.idx_player_started = (self.state.idx_player_started - 1) % self.state.cnt_player
+        self.state.idx_player_active = self.state.idx_player_started
+        self.state.bool_card_exchanged = False
+
+        # Prepare next round
+        self.distribute_cards()
+
+    def distribute_cards(self):
+        """
+        Distribute cards to players at the start of each round.
+        The number of cards decreases each round: 6, 5, 4, 3, 2.
+        """
+        # Cards per round: 6, 5, 4, 3, 2 (repeats after every 5 rounds)
+        num_cards = 6 - ((self.state.cnt_round - 1) % 5)
+
+        for player in self.state.list_player:
+            # Ensure there are enough cards to deal
+            if len(self.state.list_card_draw) < num_cards:
+                self.reshuffle_if_empty()
+            
+            # Deal the cards
+            player.list_card = [self.state.list_card_draw.pop() for _ in range(num_cards)]
+        
 
 class RandomPlayer(Player):
 
@@ -327,37 +358,21 @@ class RandomPlayer(Player):
 
 if __name__ == '__main__':
     game = Dog()
+    player = game.state.idx_player_active
+    round = game.state.cnt_round
+    n_cards = len(game.state.list_player[0].list_card)
+    print(player, round, n_cards)
+    action = game.apply_action(None)
+    action = game.apply_action(None)
+    action = game.apply_action(None)
+    action = game.apply_action(None)
+    action = game.apply_action(None)
+    player = game.state.idx_player_active
+    round = game.state.cnt_round
+    n_cards = len(game.state.list_player[0].list_card)
+    print(player, round, n_cards)
     
-    # Define the 6 test cards
-    test_cards = [
-        Card(suit='♠', rank='K'),
-        Card(suit='♥', rank='K'),
-        Card(suit='♦', rank='K'),
-        Card(suit='♠', rank='9'),
-        Card(suit='♥', rank='9'),
-        Card(suit='♦', rank='9')
-    ]
-
-    # Get the active player
-    player = game.state.list_player[game.state.idx_player_active]
-
-    # Assign these cards to the active player's list_card
-    player.list_card = test_cards
-
-    # Display the active player's list_card
-    print("Active player's cards:", player.list_card)
-
-    # Get and print available actions
-    actions = game.get_list_action()
-    print("Available actions:", actions)
-
-    if actions:
-        # Get the first possible action
-        first_action = actions[0]
     
-    game.apply_action(first_action)
-    print(player.list_marble)
-    print(player.list_card)
 
 
 
