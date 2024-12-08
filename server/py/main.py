@@ -8,6 +8,7 @@ import asyncio
 
 import server.py.hangman as hangman
 import server.py.battleship as battleship
+import server.py.dog as dog
 
 import random
 
@@ -251,6 +252,7 @@ async def uno_random_player_ws(websocket: WebSocket):
 
 # ----- Dog -----
 
+
 @app.get("/dog/simulation/", response_class=HTMLResponse)
 async def dog_simulation(request: Request):
     return templates.TemplateResponse("game/dog/simulation.html", {"request": request})
@@ -259,10 +261,41 @@ async def dog_simulation(request: Request):
 @app.websocket("/dog/simulation/ws")
 async def dog_simulation_ws(websocket: WebSocket):
     await websocket.accept()
-
+    
+    """
+    This endpoint handles a fully automated Dog game, 
+    where the RandomPlayer class simulates actions for all players.
+    """
+    
     try:
+        #Initialize Dog game and random player AI
+        game = dog.Dog()
+        player = dog.RandomPlayer()
+        
+        while True: 
+            #get current state of the game
+            state = game.get_state()
+            list_action = game.get_list_action()
+            
+            #if there are valid action, random player can pick one
+            action = None
+            if len(list_action) > 0:
+                action = player.select_action(state, list_action)
 
-        pass
+            # Prepare the state to send to the client
+            dict_state = state.model_dump()
+            dict_state['list_action'] = []  # We don't send possible actions in the simulation mode
+            dict_state['selected_action'] = None if action is None else action.model_dump()
+            
+            data = {'type': 'update', 'state' : dict_state}
+            await websocket.send_json(data) # Send the updated state to the client
+            
+            # Break the loop if the game is finished
+            if state.phase == dog.GamePhase.FINISHED:
+                break
+            
+            # Apply the action and continue the game loop
+            game.apply_action(action)
 
     except WebSocketDisconnect:
         print('DISCONNECTED')
@@ -276,10 +309,63 @@ async def dog_singleplayer(request: Request):
 @app.websocket("/dog/singleplayer/ws")
 async def dog_singleplayer_ws(websocket: WebSocket):
     await websocket.accept()
+    
+    """
+    This endpoint allows the user to play as one of the players in the Dog game
+    while the other players are controlled by AI.
+    """
+
+    idx_player_you = 0 # Assigns the user as Player 0
 
     try:
+        # Initialize Dog game and random palyer ai
+        game = dog.Dog()
+        print(f"Initialized Game State: {game.get_state().model_dump()}") # for debuging
+        player = dog.RandomPlayer()
 
-        pass
+        while True:
+            state = game.get_state()
+
+            if state.phase == dog.GamePhase.FINISHED:
+                print("Game Finished.") # for debuging
+                break
+
+            if state.idx_player_active == idx_player_you:
+                # It's the user's turn
+                state = game.get_player_view(idx_player_you)  
+                list_action = game.get_list_action()
+
+                dict_state = state.model_dump()
+                dict_state['list_action'] = [action.model_dump() for action in list_action]
+                dict_state['idx_player_you'] = idx_player_you
+                print(f"Sending State to Client: {dict_state}") # for debuging
+
+                # Send the updated state to the client
+                data = {'type': 'update', 'state': dict_state}
+                await websocket.send_json(data)
+
+                if len(list_action) == 0:
+                    # If no actions are available, move to the next player
+                    game.apply_action(None)
+                    print(f"Updated Game State (No Actions): {game.get_state().model_dump()}")# for debug
+                else:
+                    # Receive the action from the client
+                    data = await websocket.receive_json()
+                    print(f"Received Data from Client: {data}") # for debug
+                    if data['type'] == 'action':
+                        action = dog.Action.model_validate(data['action'])
+                        print(f"Applying Action: {action.model_dump()}") # for debug
+                        game.apply_action(action)
+                        print(f"Updated Game State: {game.get_state().model_dump()}") # for debug
+
+
+            else:
+                # It's the AI's turn
+                list_action = game.get_list_action()
+                action = player.select_action(state, list_action)
+                print(f"AI Selected Action: {action.model_dump() if action else None}") #for debug
+                game.apply_action(action)
+                print(f"Updated Game State (AI Turn): {game.get_state().model_dump()}")# for debug
 
     except WebSocketDisconnect:
         print('DISCONNECTED')
@@ -288,9 +374,10 @@ async def dog_singleplayer_ws(websocket: WebSocket):
 @app.websocket("/dog/random_player/ws")
 async def dog_random_player_ws(websocket: WebSocket):
     await websocket.accept()
+# Not sure why this is needed at the moment
 
     try:
-
+    
         pass
 
     except WebSocketDisconnect:
