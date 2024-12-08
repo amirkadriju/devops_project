@@ -112,16 +112,30 @@ class GameState(BaseModel):
 
 class Dog(Game):
 
+    START_POSITIONS: ClassVar[dict] = {
+        "Blue": 0,
+        "Green": 16,
+        "Red": 32,
+        "Yellow": 48
+    }
+
+    KENNEL: ClassVar[dict] = {
+        "Blue": [64, 65, 66, 67],
+        "Green": [72, 73, 74, 75],
+        "Red": [80, 81, 82, 83],
+        "Yellow": [88, 89, 90, 91]
+    }
+
     def __init__(self) -> None:
         """ Game initialization (set_state call not necessary, we expect 4 players) """
         # Shuffle the cards
         shuffled_cards = random.sample(GameState.LIST_CARD, len(GameState.LIST_CARD))
 
         # Setup the board with 95 places and initial marble positions
-        blue_marbles = [Marble(pos=str(i), is_save=True) for i in range(64, 68)]
-        green_marbles = [Marble(pos=str(i), is_save=True) for i in range(72, 76)]
-        red_marbles = [Marble(pos=str(i), is_save=True) for i in range(80, 84)]
-        yellow_marbles = [Marble(pos=str(i), is_save=True) for i in range(88, 92)]
+        blue_marbles = [Marble(pos=str(i), is_save=True) for i in Dog.KENNEL["Blue"]]
+        green_marbles = [Marble(pos=str(i), is_save=True) for i in Dog.KENNEL["Green"]]
+        red_marbles = [Marble(pos=str(i), is_save=True) for i in Dog.KENNEL["Red"]]
+        yellow_marbles = [Marble(pos=str(i), is_save=True) for i in Dog.KENNEL["Yellow"]]
 
         # Initialize players
         self.state = GameState(
@@ -151,7 +165,7 @@ class Dog(Game):
         self.state.phase = GamePhase.RUNNING
         self.state.cnt_round = 1
         self.state.idx_player_active = self.state.idx_player_started
-        self.state.bool_card_exchanged = True
+        #self.state.bool_card_exchanged = True
 
         # Exchange card with teammate
         if self.state.bool_card_exchanged:
@@ -217,35 +231,30 @@ class Dog(Game):
         state = self.get_state()
         player = state.list_player[state.idx_player_active]
 
-        # Define kennel ranges and starting positions
-        kennel_positions = {
-            "Blue": range(64, 68),
-            "Green": range(72, 76),
-            "Red": range(80, 84),
-            "Yellow": range(88, 92),
-        }
-        starting_positions = {
-            "Blue": 0,
-            "Green": 16,
-            "Red": 32,
-            "Yellow": 48,
-        }
-        player_kennel = kennel_positions[player.name]
-        player_start_position = starting_positions[player.name]
+        player_kennel = Dog.KENNEL[player.name]
+        player_start_position = Dog.START_POSITIONS[player.name]
 
-        # Check for cards that can move a marble out
-        for card in player.list_card:
-            if card.rank in ['K', 'A', 'JKR']:
-                # Find the marble with the lowest position in the kennel
-                marble_to_move = min(
-                    (marble for marble in player.list_marble if int(marble.pos) in player_kennel),
-                    key=lambda m: int(m.pos),
-                    default=None
-                )
-                if marble_to_move:
-                    list_action.append(
-                        Action(card=card, pos_from=int(marble_to_move.pos), pos_to=player_start_position)
-                    )
+        # Check if the starting position is occupied by one of the player's own marbles
+        starting_position_occupied = any(
+            int(marble.pos) == int(player_start_position) for marble in player.list_marble
+        )
+
+        # If starting position is free, check if the player has K, A, or JKR
+        if not starting_position_occupied:
+            for card in player.list_card:
+                if card.rank in ['K', 'A', 'JKR']:
+                    # Check if the player has any marbles in the kennel
+                    marbles_in_kennel = [
+                        marble for marble in player.list_marble if marble.pos in map(str, player_kennel)
+                    ]
+                    if marbles_in_kennel:
+                        # Create an action to move the first marble out of the kennel
+                        action = Action(
+                            card=card,
+                            pos_from=int(marbles_in_kennel[0].pos),
+                            pos_to=player_start_position
+                        )
+                        list_action.append(action)
         
         # Check if Player can move forward (NO SPECIAL CARDS HERE)
         for card in player.list_card:
@@ -271,11 +280,16 @@ class Dog(Game):
             return
 
         player = self.state.list_player[self.state.idx_player_active]
-        
+        card = action.card
+
+        if not card:
+            raise ValueError("Action must include a card.")
+
+
         # check if any marbles should be moved
         marble_to_move = None
         for marble in player.list_marble:
-            if marble.pos == action.pos_from:
+            if int(marble.pos) == int(action.pos_from):
                 marble_to_move = marble
                 break
 
@@ -313,10 +327,38 @@ class RandomPlayer(Player):
 
 if __name__ == '__main__':
     game = Dog()
-    '''game.print_state()
+    
+    # Define the 6 test cards
+    test_cards = [
+        Card(suit='♠', rank='K'),
+        Card(suit='♥', rank='K'),
+        Card(suit='♦', rank='K'),
+        Card(suit='♠', rank='9'),
+        Card(suit='♥', rank='9'),
+        Card(suit='♦', rank='9')
+    ]
+
+    # Get the active player
+    player = game.state.list_player[game.state.idx_player_active]
+
+    # Assign these cards to the active player's list_card
+    player.list_card = test_cards
+
+    # Display the active player's list_card
+    print("Active player's cards:", player.list_card)
+
+    # Get and print available actions
     actions = game.get_list_action()
-    print(actions)
-    start_game_action = next((a for a in actions if a.action_type == ActionType.GAME_START), None)
-    if start_game_action:
-        game.apply_action(start_game_action)
-    game.print_state()'''
+    print("Available actions:", actions)
+
+    if actions:
+        # Get the first possible action
+        first_action = actions[0]
+    
+    game.apply_action(first_action)
+    print(player.list_marble)
+    print(player.list_card)
+
+
+
+
