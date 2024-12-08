@@ -2,7 +2,7 @@
 
 
 import pytest
-from server.py.dog import Dog, GamePhase
+from server.py.dog import Dog, GamePhase, Card, Marble, PlayerState, Action, GameState
 
 
 def test_dog_initialization():
@@ -47,6 +47,36 @@ def test_dog_initialization():
     for player in game.state.list_player:
         player_positions = [marble.pos for marble in player.list_marble]
         assert player_positions == positions[player.name], f"{player.name} marbles should be in the correct starting positions."
+
+def test_card_steps():
+    """Test the card steps calculation."""
+    game = Dog()
+
+    assert game.state.get_card_steps("2") == 2
+    assert game.state.get_card_steps("Q") == 12
+    assert game.state.get_card_steps("K") == 13
+
+
+
+
+def test_apply_action():
+    """Test applying an action."""
+    game = Dog()
+    initial_active_player = game.state.idx_player_active
+    actions = game.get_list_action()
+    if actions:
+        game.apply_action(actions[0])
+        assert game.state.idx_player_active != initial_active_player, "Active player should change after applying an action."
+
+
+def test_exchange_cards():
+    """Test the card exchange functionality."""
+    game = Dog()
+    game.state.bool_card_exchanged = False
+    game.exchange_cards()
+    assert game.state.bool_card_exchanged, "Card exchange flag should be set to True after exchange."
+
+
 
 
 if __name__ == "__main__":
