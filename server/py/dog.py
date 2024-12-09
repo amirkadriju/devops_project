@@ -16,6 +16,10 @@ class Card(BaseModel):
     suit: str  # card suit (color)
     rank: str  # card rank
 
+    def __lt__(self, card) -> bool:
+        return self.suit < card.suit or \
+            self.rank < card.rank
+
 
 class Marble(BaseModel):
     pos: str       # position on board (0 to 95)
@@ -258,7 +262,8 @@ class Dog(Game):
         # If starting position is free, check if the player has K, A, or JKR
         if not starting_position_occupied:
             for card in player.list_card:
-                if card.rank in ['K', 'A', 'JKR']:
+                # Handle Ace and King
+                if card.rank in ['K', 'A']:
                     # Check if the player has any marbles in the kennel
                     marbles_in_kennel = [
                         marble for marble in player.list_marble if marble.pos in map(str, player_kennel)
@@ -271,6 +276,35 @@ class Dog(Game):
                             pos_to=player_start_position
                         )
                         list_action.append(action)
+
+                # Handle Joker (JKR) separately
+                elif card.rank == 'JKR':
+                    # Check if the player has any marbles in the kennel
+                    marbles_in_kennel = [
+                        marble for marble in player.list_marble if marble.pos in map(str, player_kennel)
+                    ]
+                    if marbles_in_kennel:
+                        # Create an action to move the first marble out of the kennel
+                        action = Action(
+                            card=card,
+                            pos_from=int(marbles_in_kennel[0].pos),
+                            pos_to=player_start_position
+                        )
+                        list_action.append(action)
+
+                        # Add swap actions for Ace and King for all suits
+                        for substitute_rank in ['A', 'K']:
+                            for suit in GameState.LIST_SUIT:
+                                substitute_card = Card(suit=suit, rank=substitute_rank)
+                                list_action.append(
+                                    Action(
+                                        card=card,
+                                        pos_from=None,  
+                                        pos_to=None,    
+                                        card_swap=substitute_card
+                                    )
+                                )
+
         
         # Add moving forward for each marble
         for card in player.list_card:
