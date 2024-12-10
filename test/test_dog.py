@@ -57,8 +57,6 @@ def test_card_steps():
     assert game.state.get_card_steps("K") == 13
 
 
-
-
 def test_apply_action():
     """Test applying an action."""
     game = Dog()
