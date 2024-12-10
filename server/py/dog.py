@@ -527,3 +527,60 @@ if __name__ == '__main__':
     # n_cards = len(game.state.list_player[0].list_card)
     # print(player, round, n_cards)
 
+
+
+
+
+
+    # AMIR's WORK:
+    # Add moving forward for each marble
+        # for card in player.list_card:
+        #     for marble in player.list_marble:
+        #         pos_from = marble.pos
+                
+        #         # check if marble is in the kennel
+        #         if pos_from in map(str, player_kennel):
+        #             continue
+
+        #         # get step options based on card
+        #         steps_options  = self.state.get_card_steps(card)
+                
+        #         for steps in steps_options:
+        #             # Calculate the new position
+        #             pos_to = pos_from + steps
+        #             if pos_from >= 0 and pos_from <= 63:
+        #                 pos_to %= 64  # Wrap around the board
+
+        #                 # Handle entering endzone
+        #                 if player.name == "Blue" and pos_from <= 63 and pos_to >= 68:
+        #                     pos_to = min(68 + (pos_to - 68), 71)  # Enter Blue endzone
+        #                 elif player.name == "Green" and pos_from <= 15 and pos_to >= 76:
+        #                     pos_to = min(76 + (pos_to - 76), 79)  # Enter Green endzone
+        #                 elif player.name == "Red" and pos_from <= 31 and pos_to >= 84:
+        #                     pos_to = min(84 + (pos_to - 84), 87)  # Enter Red endzone
+        #                 elif player.name == "Yellow" and pos_from <= 47 and pos_to >= 92:
+        #                     pos_to = min(92 + (pos_to - 92), 95)  # Enter Yellow endzone
+
+        #             # Handle marbles already in the endzone
+        #             if pos_from >= 68:
+        #                 endzone_start = Dog.ENDZONE[player.name][0]
+        #                 endzone_end = Dog.ENDZONE[player.name][-1]
+        #                 pos_to = min(pos_from + steps, endzone_end)
+                    
+        #             # Check for overtaking in the finish zone
+        #             if pos_from >= Dog.ENDZONE[player.name][0]:
+        #                 # Get all marbles in the finish zone
+        #                 marbles_in_finish_zone = [
+        #                     marble for marble in player.list_marble
+        #                     if int(marble.pos) >= Dog.ENDZONE[player.name][0] and int(marble.pos) <= Dog.ENDZONE[player.name][-1]
+        #                 ]
+                        
+        #                 # If the move would place the marble in a position already occupied by another, it should be blocked
+        #                 if any(marble.pos >= pos_to for marble in marbles_in_finish_zone) and pos_to <= Dog.ENDZONE[player.name][-1]:
+        #                     continue
+
+        #             # Validate the move
+        #             if self.state.is_valid_move(pos_from, pos_to):
+        #                 list_action.append(
+        #                     Action(card=card, pos_from=pos_from, pos_to=pos_to)
+        #                 )
