@@ -374,10 +374,17 @@ class Dog(Game):
 
     def apply_action(self, action: Optional[Action]) -> None:
         """ Apply the given action to the game """
+        active_player = self.state.list_player[self.state.idx_player_active]
         if action is None:
-            self.advance_turn()
+            # Check if folding cards is appropriate
+            if self._can_fold_cards(self.state.cnt_round, active_player):
+                while active_player.list_card:
+                    folded_card = active_player.list_card.pop(0)
+                    self.state.list_card_discard.append(folded_card)
+                print(f"Folding all cards for player {active_player.name}")
+            # Move to the next player and check if the round should end
+            self._advance_turn()
             return
-
         player = self.state.list_player[self.state.idx_player_active]
         marble_to_move = next(
             (m for m in player.list_marble if int(m.pos) == action.pos_from), None
@@ -398,7 +405,20 @@ class Dog(Game):
         # Discard the card and advance the turn
         player.list_card.remove(action.card)
         self.state.list_card_discard.append(action.card)
-        self.advance_turn()
+        self._advance_turn()
+
+    def _can_fold_cards(self, round_number, player):
+        """ Determine if it is appropriate to fold cards based on game round and state """
+        # Avoid folding if it's a round with specific card count requirements
+        if round_number == 6 and len(player.list_card) == 6:
+            return False
+        return True
+
+    def _advance_turn(self):
+        """ Advances the game to the next player and checks if the round should end. """
+        self.state.idx_player_active = (self.state.idx_player_active + 1) % self.state.cnt_player
+        if self.state.idx_player_active == self.state.idx_player_started:
+            self.end_round()
 
     def move_marble_to_start(self, player: PlayerState, marble: Marble, action: Action) -> None:
         """Move a marble out of the kennel to the starting position."""
@@ -447,11 +467,6 @@ class Dog(Game):
                 marble_to_swap.pos
             )
 
-    def advance_turn(self) -> None:
-        """Advance the turn to the next player."""
-        self.state.idx_player_active = (self.state.idx_player_active + 1) % self.state.cnt_player
-        if self.state.idx_player_active == self.state.idx_player_started:
-            self.end_round()
 
     def exchange_cards(self):
         # Exchange the first card with teammate
