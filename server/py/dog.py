@@ -326,9 +326,7 @@ class Dog(Game):
                                         card_swap=substitute_card
                                     )
                                 )
-                        
                 else:
-                    # I imagine 7 will go here?
                     continue
 
             steps = GameState.get_card_steps(str(card.rank))
