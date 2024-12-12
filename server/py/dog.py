@@ -308,26 +308,13 @@ class Dog(Game):
         other_ranks = ["J", "K", "A", "7"]
 
         for card in player.list_card:
-            if card.rank not in valid_ranks:
-                if card.rank == "JKR":
-                    for marble in player.list_marble:
-                        if marble.pos is None or not 0 <= int(marble.pos) <= 63:
-                                continue
-                        for rank in valid_ranks + other_ranks:
-                            for suit in GameState.LIST_SUIT:
-                                if not marble.is_save:
-                                    continue
-                                substitute_card = Card(suit=suit, rank=rank)
-                                actions.append(
-                                    Action(
-                                        card=card,
-                                        pos_from=None,
-                                        pos_to=None,
-                                        card_swap=substitute_card
-                                    )
-                                )
-                else:
-                    continue
+            if card.rank not in valid_ranks and card.rank != "JKR":
+                continue
+
+            if card.rank == "JKR":
+                # Generate substitute actions for Joker cards
+                actions.extend(self._generate_joker_actions(player, card, valid_ranks, other_ranks))
+                continue
 
             steps = GameState.get_card_steps(str(card.rank))
 
@@ -336,21 +323,37 @@ class Dog(Game):
                     continue
 
                 pos_from = int(marble.pos)
+                possible_steps = steps if isinstance(steps, tuple) else (steps,)
 
-                # Check if steps is a tuple or int
-                if isinstance(steps, tuple):
-                    possible_steps = steps
-                else:
-                    possible_steps = (steps,)
-
-                for s in possible_steps:
-                    pos_to = pos_from + s
+                for step in possible_steps:
+                    pos_to = pos_from + step
                     if pos_to > 63 or not marble.is_save:
                         continue
 
                     if GameState.is_valid_move(pos_to, player.list_marble):
                         actions.append(Action(card=card, pos_from=marble.pos, pos_to=pos_to))
 
+        return actions
+
+    def _generate_joker_actions(
+        self, player: PlayerState, joker_card: Card, valid_ranks: List[str], other_ranks: List[str]
+    ) -> List[Action]:
+        """Generate substitute actions for Joker cards."""
+        actions = []
+        for marble in player.list_marble:
+            if marble.pos is None or not 0 <= int(marble.pos) <= 63 or not marble.is_save:
+                continue
+            for rank in valid_ranks + other_ranks:
+                for suit in GameState.LIST_SUIT:
+                    substitute_card = Card(suit=suit, rank=rank)
+                    actions.append(
+                        Action(
+                            card=joker_card,
+                            pos_from=None,
+                            pos_to=None,
+                            card_swap=substitute_card,
+                        )
+                    )
         return actions
 
     def get_into_endzone_actions(self, player: PlayerState) -> List[Action]:
