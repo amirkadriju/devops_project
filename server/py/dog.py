@@ -314,26 +314,6 @@ class Dog(Game):
                         if marble.pos is None or not 0 <= int(marble.pos) <= 63:
                                 continue
                         for rank in valid_ranks + other_ranks:
-                            '''
-                            if rank == "J":
-                                jake_actions = self.get_jake_actions(player, card)
-                                actions.extend(jake_actions)
-                                continue
-
-                            steps = GameState.get_card_steps(str(card.rank))
-                            
-                            pos_from = int(marble.pos)
-                            if isinstance(steps, tuple):
-                                possible_steps = steps
-                            else:
-                                possible_steps = (steps,)
-                            for s in possible_steps:
-                                pos_to = pos_from + s
-                                if pos_to > 63 or not marble.is_save:
-                                    continue
-                                if GameState.is_valid_move(pos_to, player.list_marble):
-                                    actions.append(Action(card=card, pos_from=marble.pos, pos_to=pos_to))
-                            '''
                             for suit in GameState.LIST_SUIT:
                                 if not marble.is_save:
                                     continue
