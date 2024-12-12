@@ -399,13 +399,18 @@ class Dog(Game):
         """ Apply the given action to the game """
         active_player = self.state.list_player[self.state.idx_player_active]
         if action is None:
+            # Determine if reshuffle is needed
+            num_cards = 6 - ((self.state.cnt_round - 1) % 5)  # Matches the logic in `distribute_cards`
+            # Ensure enough cards are available for dealing, reshuffle if necessary
+            if len(self.state.list_card_draw) < num_cards:
+                self.reshuffle_if_empty()
+
             # Check if folding cards is appropriate
             if self._can_fold_cards(self.state.cnt_round, active_player):
-                while active_player.list_card:
-                    folded_card = active_player.list_card.pop(0)
-                    self.state.list_card_discard.append(folded_card)
-            # Move to the next player and check if the round should end
-            self._advance_turn()
+                # Move all cards from active player's hand to the discard pile
+                self.state.list_card_discard.extend(active_player.list_card)
+                active_player.list_card.clear()
+                self._advance_turn()
             return
         player = self.state.list_player[self.state.idx_player_active]
         marble_to_move = next(

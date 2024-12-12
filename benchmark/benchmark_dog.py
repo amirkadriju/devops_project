@@ -1757,11 +1757,13 @@ class DogBenchmark(benchmark.Benchmark):
         str_state = str(state)
 
         cnt_cards = len(state.list_card_draw)
+        print(cnt_cards) # DELETE
         for player in state.list_player:
             cnt_cards += len(player.list_card)
+        print(cnt_cards) # DELETE
 
         hint = str_state
-        hint += f'Error 1: Sum of cards must remain 110 after re-shuffle.'
+        hint += f'Error 1: Sum of cards must remain 110 after re-shuffle. COUNT: {cnt_cards}' #DELETE COUNT: {cnt_cards}
         assert cnt_cards == 110, hint
 
         hint = str_state
