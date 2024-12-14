@@ -438,6 +438,7 @@ class Dog(Game):
         if action is None:
             self._handle_fold_cards(active_player)
             self._advance_turn()
+
             return
 
         marble_to_move = self._find_marble_to_move(active_player, action.pos_from)
@@ -587,24 +588,16 @@ class Dog(Game):
         # Cards per round: 6, 5, 4, 3, 2 (repeats after every 5 rounds)
         num_cards = 6 - ((self.state.cnt_round - 1) % 5)
 
-        for player in self.state.list_player:
-            if self.state.list_card_draw:
-                if len(self.state.list_card_draw) < num_cards:
-                    self.reshuffle_if_empty()
+        while len(self.state.list_card_draw) < num_cards*4:
+            self.reshuffle_if_empty()
 
-                player.list_card = [self.state.list_card_draw.pop() for _ in range(num_cards)]
+        for player in self.state.list_player:
+            player.list_card = [self.state.list_card_draw.pop() for _ in range(num_cards)]
 
     def reshuffle_if_empty(self) -> None:
-        """ Reshuffle the discard pile into the draw pile when empty """
-        if not self.state.list_card_draw:  # Check if the draw pile is empty
-            if self.state.list_card_discard:  # Check if there are discarded cards
-                # Move discarded cards to the draw pile
-                self.state.list_card_draw.extend(self.state.list_card_discard)
-                self.state.list_card_discard.clear()  # Clear the discard pile
-                random.shuffle(self.state.list_card_draw)  # Shuffle the draw pile
-            else:
-                # No cards in either pile; raise an error
-                raise ValueError("Both draw and discard piles are empty! Game cannot continue.")
+        self.state.list_card_draw = random.sample(GameState.LIST_CARD, len(GameState.LIST_CARD))
+        self.state.list_card_discard.clear()
+        random.shuffle(self.state.list_card_draw)
 
 # pylint: disable=R0903
 class RandomPlayer(Player):
