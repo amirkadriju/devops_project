@@ -399,13 +399,19 @@ class Dog(Game):
         """ Apply the given action to the game """
         active_player = self.state.list_player[self.state.idx_player_active]
         if action is None:
+            # Determine if reshuffle is needed
+            num_cards = 6 - ((self.state.cnt_round - 1) % 5)  # Matches the logic in `distribute_cards`
+            # Ensure enough cards are available for dealing, reshuffle if necessary
+            if len(self.state.list_card_draw) < num_cards:
+                self.reshuffle_if_empty()
+                #return
             # Check if folding cards is appropriate
             if self._can_fold_cards(self.state.cnt_round, active_player):
-                while active_player.list_card:
-                    folded_card = active_player.list_card.pop(0)
-                    self.state.list_card_discard.append(folded_card)
-            # Move to the next player and check if the round should end
-            self._advance_turn()
+                # Move all cards from active player's hand to the discard pile
+                self.state.list_card_discard.extend(active_player.list_card)
+                active_player.list_card.clear()
+                self.state.list_card_discard.clear()
+                self._advance_turn()
             return
         player = self.state.list_player[self.state.idx_player_active]
         marble_to_move = next(
@@ -526,24 +532,16 @@ class Dog(Game):
         # Cards per round: 6, 5, 4, 3, 2 (repeats after every 5 rounds)
         num_cards = 6 - ((self.state.cnt_round - 1) % 5)
 
-        for player in self.state.list_player:
-            if self.state.list_card_draw:
-                if len(self.state.list_card_draw) < num_cards:
-                    self.reshuffle_if_empty()
+        while len(self.state.list_card_draw) < num_cards*4:
+            self.reshuffle_if_empty()
 
-                player.list_card = [self.state.list_card_draw.pop() for _ in range(num_cards)]
+        for player in self.state.list_player:
+            player.list_card = [self.state.list_card_draw.pop() for _ in range(num_cards)]
 
     def reshuffle_if_empty(self) -> None:
-        """ Reshuffle the discard pile into the draw pile when empty """
-        if not self.state.list_card_draw:  # Check if the draw pile is empty
-            if self.state.list_card_discard:  # Check if there are discarded cards
-                # Move discarded cards to the draw pile
-                self.state.list_card_draw.extend(self.state.list_card_discard)
-                self.state.list_card_discard.clear()  # Clear the discard pile
-                random.shuffle(self.state.list_card_draw)  # Shuffle the draw pile
-            else:
-                # No cards in either pile; raise an error
-                raise ValueError("Both draw and discard piles are empty! Game cannot continue.")
+        self.state.list_card_draw = random.sample(GameState.LIST_CARD, len(GameState.LIST_CARD))
+        self.state.list_card_discard.clear()
+        random.shuffle(self.state.list_card_draw)
 
 # pylint: disable=R0903
 class RandomPlayer(Player):
