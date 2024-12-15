@@ -391,6 +391,26 @@ class Dog(Game):
 
         return swapped_action
 
+
+    def _apply_seven_kickout(self, action:Action):
+        """Kickout marbles who are overrun by a 7"""
+        pos_from = action.pos_from
+        pos_to = action.pos_to
+
+        for one_player in self.state.list_player:
+            player_kennel = Dog.KENNEL[one_player.name]
+            all_kennel_positions = set(map(str, player_kennel))  # Ensure all positions are strings
+            occupied_kennel_positions = {
+                marble.pos for marble in one_player.list_marble if marble.pos in all_kennel_positions
+                }
+            free_kennel_positions = list(all_kennel_positions - occupied_kennel_positions)
+            for marble in one_player.list_marble:
+                if int(marble.pos) > pos_from and int(marble.pos) <= pos_to and not marble.is_save:
+                    # Assign a new position from the free kennel positions
+                    if free_kennel_positions:
+                        marble.pos = int(free_kennel_positions[0])
+                        marble.is_save = False
+
     def get_into_endzone_actions(self, player: PlayerState) -> List[Action]:
         actions: List[Action] = []
         player = player.name
@@ -439,18 +459,15 @@ class Dog(Game):
         actions = []
 
         steps = GameState.get_card_steps(str(card.rank))
-
         for marble in player.list_marble:
             if marble.pos is None or not 0 <= int(marble.pos) <= 63:
                 continue
             pos_from = int(marble.pos)
             possible_steps = steps if isinstance(steps, tuple) else (steps,)
-
             for step in possible_steps:
                 pos_to = pos_from + step
                 if pos_to > 63:
                     continue
-
                 if GameState.is_valid_move(pos_to, player.list_marble):
                     actions.append(Action(card=card, pos_from=marble.pos, pos_to=pos_to))
 
@@ -469,6 +486,9 @@ class Dog(Game):
             self._run_joker_swap(active_player, action)
             print("Joker karte gefunden")
             return
+
+        if action.card.rank == "7":
+            self._apply_seven_kickout(action)
 
         if action.pos_from is None:
             if not self.state.bool_card_exchanged:
