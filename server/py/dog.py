@@ -366,6 +366,24 @@ class Dog(Game):
                     )
         return actions
 
+    def _run_joker_swap(self, player: PlayerState, card_action:Action) -> List[Action]:
+        """Swap Joker card with another chosen one"""
+        swapped_action = []
+
+        swapped_action.append(
+            Action(
+                card=card_action.card,
+                pos_from=None,
+                pos_to=None,
+                card_swap=card_action.card_swap,
+            )
+        )
+        self.state.card_active = card_action.card_swap
+        player.list_card.remove(card_action.card)
+        self.state.list_card_discard.append(card_action.card)
+
+        return swapped_action
+
     def get_into_endzone_actions(self, player: PlayerState) -> List[Action]:
         actions: List[Action] = []
         player = player.name
@@ -439,8 +457,12 @@ class Dog(Game):
             self._handle_fold_cards(active_player)
             self._advance_turn()
             return
-
         marble_to_move = self._find_marble_to_move(active_player, action.pos_from)
+
+        if action.card.rank == "JKR":
+            self._run_joker_swap(active_player, action)
+            print("Joker karte gefunden")
+            return
 
         if not marble_to_move:
             raise ValueError("No marble found at the given position.")
