@@ -217,49 +217,75 @@ class Dog(Game):
         Get a list of possible actions for the active player.
         Returns: actions -> list
         """
-        list_action = []
         state = self.get_state()
         player = state.list_player[state.idx_player_active]
+
+        # Handle teammate's marbles if the player's own marbles are all in the finish zone
+        if self._all_marbles_in_finish(player):
+            return self._get_partner_actions(player, state)
+
+        # Handle card exchange if it hasn't happened yet
         if not state.bool_card_exchanged:
-            player = state.list_player[state.idx_player_active]
+            return self._get_exchange_actions(player)
 
-        # Only proceed if the exchange hasn't happened yet
-        if not state.bool_card_exchanged:
-            actions = []
-            for card in player.list_card:
-                # Create an action for exchanging each card
-                action = Action(
-                    card=card,
-                    pos_from=None,
-                    pos_to=None
-                )
-                actions.append(action)
-            list_action.extend(actions)
-        else:
-            # Special handling for the "7" card
-            for card in player.list_card:
-                if card.rank == '7':  # Special case for card "7"
-                    # Add the action where the player can move marbles in total 7 steps
-                    list_action.extend(self.get_seven_actions(player, card))
+        # Handle the player's own actions
+        return self._get_player_actions(player)
 
-                if card.rank == 'J':  # Jake card
-                    jake_actions = self.get_jake_actions(player, card)
-                    list_action.extend(jake_actions)
+    def _all_marbles_in_finish(self, player: PlayerState) -> bool:
+        """Check if all marbles of the player are in the finish zone."""
+        return all(int(marble.pos) >= Dog.ENDZONE[player.name][0] for marble in player.list_marble)
 
-                else:
-                    if self.state.card_active is None:
-                        list_action.extend(self.get_kennel_exit_actions(player))
-                        list_action.extend(self.get_board_move_actions(player))
-                        list_action.extend(self.get_into_endzone_actions(player))
+    def _get_partner_actions(self, player: PlayerState, state: GameState) -> List[Action]:
+        """Generate actions for partner's marbles when the active player's marbles are all in the finish zone."""
+        actions = []
+        idx_partner = (state.idx_player_active + 2) % len(state.list_player)
+        partner = state.list_player[idx_partner]
+
+        for card in player.list_card:
+            steps = GameState.get_card_steps(card.rank)
+            possible_steps = steps if isinstance(steps, tuple) else (steps,)
+
+            for marble in partner.list_marble:
+                if marble.is_save:
+                    continue  # Skip marbles in save zones
+
+                for step in possible_steps:
+                    pos_to = int(marble.pos) + step
+                    if GameState.is_valid_move(pos_to, partner.list_marble):
+                        actions.append(Action(card=card, pos_from=int(marble.pos), pos_to=pos_to))
+
+        return actions
+
+    def _get_exchange_actions(self, player: PlayerState) -> List[Action]:
+        """Generate actions for card exchange."""
+        return [Action(card=card, pos_from=None, pos_to=None) for card in player.list_card]
+
+    def _get_player_actions(self, player: PlayerState) -> List[Action]:
+        """Generate actions for the active player's own marbles."""
+        actions = []
+
+        for card in player.list_card:
+            if card.rank == '7':  # Special case for card "7"
+                actions.extend(self.get_seven_actions(player, card))
+            elif card.rank == 'J':  # Jake card
+                actions.extend(self.get_jake_actions(player, card))
+            else:
+                if self.state.card_active is None:
+                    actions.extend(self.get_kennel_exit_actions(player))
+                    actions.extend(self.get_board_move_actions(player))
+                    actions.extend(self.get_into_endzone_actions(player))
+
+        return self._remove_duplicate_actions(actions)
+
+    def _remove_duplicate_actions(self, actions: List[Action]) -> List[Action]:
+        """Remove duplicate actions from the list."""
+        unique_actions = []
+        for action in actions:
+            if action not in unique_actions:
+                unique_actions.append(action)
+        return unique_actions
 
 
-        unique_list = []
-        for item in list_action:
-            if item in unique_list:
-                continue
-            unique_list.append(item)
-
-        return unique_list
 
     def get_kennel_exit_actions(self, player: PlayerState) -> List[Action]:
         """ Generate actions to move marbles out of the kennel. """
@@ -482,24 +508,34 @@ class Dog(Game):
             self._advance_turn()
             return
 
+        # Handle Joker Swap separately
         if action.card.rank == "JKR":
             self._run_joker_swap(active_player, action)
-            print("Joker karte gefunden")
+            print("Joker card detected")
             return
 
         if action.card.rank == "7":
             self._apply_seven_kickout(action)
 
         if action.pos_from is None:
+            # Handle card exchange
             if not self.state.bool_card_exchanged:
                 self.exchange_cards()
         else:
-            marble_to_move = self._find_marble_to_move(active_player, action.pos_from)
+            # Check if the action is for moving a partner's marble
+            idx_partner = (self.state.idx_player_active + 2) % len(self.state.list_player)
+            partner = self.state.list_player[idx_partner]
+
+            if action.pos_from in [int(m.pos) for m in partner.list_marble]:
+                marble_to_move = next(m for m in partner.list_marble if int(m.pos) == action.pos_from)
+            else:
+                marble_to_move = self._find_marble_to_move(active_player, action.pos_from)
 
             self._handle_action_with_card(active_player, marble_to_move, action)
 
             # Discard the card and advance the turn
             self._discard_card_and_advance(action, active_player)
+
 
     def _handle_fold_cards(self, active_player: Player) -> None:
         """ Handle folding cards when action is None """
