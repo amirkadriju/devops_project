@@ -36,7 +36,6 @@ class Action(BaseModel):
     pos_to: Optional[int] = None          # Make optional
     card_swap: Optional[Card] = None      # Make optional)
 
-
 class GamePhase(str, Enum):
     SETUP = 'setup'            # before the game has started
     RUNNING = 'running'        # while the game is running
@@ -183,19 +182,6 @@ class Dog(Game):
         self.state.cnt_round = 1
         self.state.idx_player_active = self.state.idx_player_started
 
-        # Exchange card with teammate
-        if self.state.bool_card_exchanged:
-            for player in self.state.list_player:
-                for teammate in self.state.list_player:
-                    if teammate.name == player.teamMate and player.name < teammate.name:
-                        card_to_exchange = random.choice(player.list_card)
-                        player.list_card.remove(card_to_exchange)
-                        card_from_teammate = random.choice(teammate.list_card)
-                        teammate.list_card.remove(card_from_teammate)
-                        teammate.list_card.append(card_to_exchange)
-                        player.list_card.append(card_from_teammate)
-            self.state.bool_card_exchanged = False
-
     def set_state(self, state: GameState) -> None:
         """ Set the game to a given state """
         self.state = state
@@ -234,25 +220,46 @@ class Dog(Game):
         list_action = []
         state = self.get_state()
         player = state.list_player[state.idx_player_active]
+        if not state.bool_card_exchanged:
+            player = state.list_player[state.idx_player_active]
 
-        # Special handling for the "7" card
-        for card in player.list_card:
-            if card.rank == '7':  # Special case for card "7"
-                # Add the action where the player can move marbles in total 7 steps
-                list_action.extend(self.get_seven_actions(player, card))
+        # Only proceed if the exchange hasn't happened yet
+        if not state.bool_card_exchanged:
+            actions = []
+            for card in player.list_card:
+                # Create an action for exchanging each card
+                action = Action(
+                    card=card,
+                    pos_from=None,
+                    pos_to=None
+                )
+                actions.append(action)
+            list_action.extend(actions)
+        else:
+            # Special handling for the "7" card
+            for card in player.list_card:
+                if card.rank == '7':  # Special case for card "7"
+                    # Add the action where the player can move marbles in total 7 steps
+                    list_action.extend(self.get_seven_actions(player, card))
 
-            if card.rank == 'J':  # Jake card
-                jake_actions = self.get_jake_actions(player, card)
-                list_action.extend(jake_actions)
+                if card.rank == 'J':  # Jake card
+                    jake_actions = self.get_jake_actions(player, card)
+                    list_action.extend(jake_actions)
 
-            else:
-                if self.state.card_active is None:
-                    list_action.extend(self.get_kennel_exit_actions(player))
-                    list_action.extend(self.get_board_move_actions(player))
-                    list_action.extend(self.get_into_endzone_actions(player))
+                else:
+                    if self.state.card_active is None:
+                        list_action.extend(self.get_kennel_exit_actions(player))
+                        list_action.extend(self.get_board_move_actions(player))
+                        list_action.extend(self.get_into_endzone_actions(player))
 
-        return list_action
 
+        unique_list = []
+        for item in list_action:
+            if item in unique_list:
+                continue
+            unique_list.append(item)
+
+        return unique_list
 
     def get_kennel_exit_actions(self, player: PlayerState) -> List[Action]:
         """ Generate actions to move marbles out of the kennel. """
@@ -329,7 +336,7 @@ class Dog(Game):
             steps = GameState.get_card_steps(str(card.rank))
 
             for marble in player.list_marble:
-                if marble.pos is None or not 0 <= int(marble.pos) <= 63:
+                if marble.pos is None or int(marble.pos) < 0:
                     continue
 
                 pos_from = int(marble.pos)
@@ -440,15 +447,16 @@ class Dog(Game):
             self._advance_turn()
             return
 
-        marble_to_move = self._find_marble_to_move(active_player, action.pos_from)
+        if action.pos_from is None:
+            if not self.state.bool_card_exchanged:
+                self.exchange_cards()
+        else:
+            marble_to_move = self._find_marble_to_move(active_player, action.pos_from)
 
-        if not marble_to_move:
-            raise ValueError("No marble found at the given position.")
+            self._handle_action_with_card(active_player, marble_to_move, action)
 
-        self._handle_action_with_card(active_player, marble_to_move, action)
-
-        # Discard the card and advance the turn
-        self._discard_card_and_advance(action, active_player)
+            # Discard the card and advance the turn
+            self._discard_card_and_advance(action, active_player)
 
     def _handle_fold_cards(self, active_player: Player) -> None:
         """ Handle folding cards when action is None """
@@ -555,16 +563,14 @@ class Dog(Game):
                 marble_to_swap.pos
             )
 
-
     def exchange_cards(self) -> None:
         # Exchange the first card with teammate
-        if not self.state.bool_card_exchanged:
-            for idx_player, player in enumerate(self.state.list_player):
-                idx_player_partner = (idx_player + 2) % len(self.state.list_player)
-                teammate = self.state.list_player[idx_player_partner]
-                card_to_exchange = player.list_card[0]
-                player.list_card.remove(card_to_exchange)
-                teammate.list_card.append(card_to_exchange)
+        for idx_player, player in enumerate(self.state.list_player):
+            idx_player_partner = (idx_player + 2) % len(self.state.list_player)
+            teammate = self.state.list_player[idx_player_partner]
+            card_to_exchange = player.list_card[0]
+            player.list_card.remove(card_to_exchange)
+            teammate.list_card.append(card_to_exchange)
         self.state.bool_card_exchanged = True
 
     def get_player_view(self, idx_player: int) -> GameState:
