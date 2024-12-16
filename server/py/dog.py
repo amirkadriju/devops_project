@@ -119,6 +119,8 @@ class Dog(Game):
 
     SEVEN_STEPS_COUNTER: ClassVar[int] = 0
 
+    EXCHANGE_COUNTER: ClassVar[int] = 0
+
     START_POSITIONS: ClassVar[dict] = {
         "Blue": 0,
         "Green": 16,
@@ -505,6 +507,19 @@ class Dog(Game):
         """ Apply the given action to the game """
         active_player = self.state.list_player[self.state.idx_player_active]
 
+        if not self.state.bool_card_exchanged and Dog.EXCHANGE_COUNTER <= 4 and action:
+            teammate = self.state.list_player[(self.state.idx_player_active + 2) % self.state.cnt_player]
+            teammate.list_card.append(action.card)
+            active_player.list_card.remove(action.card)
+            Dog.EXCHANGE_COUNTER += 1
+
+
+            if Dog.EXCHANGE_COUNTER == 4:
+                self.state.bool_card_exchanged = True
+                Dog.EXCHANGE_COUNTER = 0
+            self.state.idx_player_active = (self.state.idx_player_active + 1) % self.state.cnt_player
+            return
+
         if action is None:
             self._handle_fold_cards(active_player)
             self._advance_turn()
@@ -663,11 +678,12 @@ class Dog(Game):
     def exchange_cards(self) -> None:
         # Exchange the first card with teammate
         for idx_player, player in enumerate(self.state.list_player):
-            idx_player_partner = (idx_player + 2) % len(self.state.list_player)
-            teammate = self.state.list_player[idx_player_partner]
-            card_to_exchange = player.list_card[0]
-            player.list_card.remove(card_to_exchange)
-            teammate.list_card.append(card_to_exchange)
+            if player.list_card:
+                card_to_exchange = player.list_card[0]
+                idx_player_partner = (idx_player + 2) % len(self.state.list_player)
+                teammate_ = self.state.list_player[idx_player_partner]
+                player.list_card.remove(card_to_exchange)
+                teammate_.list_card.append(card_to_exchange)
         self.state.bool_card_exchanged = True
 
     def get_player_view(self, idx_player: int) -> GameState:
