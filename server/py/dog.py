@@ -273,7 +273,7 @@ class Dog(Game):
                 if self.state.card_active is None:
                     actions.extend(self.get_kennel_exit_actions(player))
                     actions.extend(self.get_board_move_actions(player))
-                    actions.extend(self.get_into_endzone_actions(player))
+                    #actions.extend(self.get_into_endzone_actions(player))
 
         return self._remove_duplicate_actions(actions)
 
@@ -374,7 +374,7 @@ class Dog(Game):
                         continue
 
                     if GameState.is_valid_move(pos_to, player.list_marble):
-                        actions.append(Action(card=card, pos_from=marble.pos, pos_to=pos_to))
+                        actions.append(Action(card=card, pos_from=int(marble.pos), pos_to=pos_to))
 
         return actions
 
@@ -412,13 +412,14 @@ class Dog(Game):
             )
         )
         self.state.card_active = card_action.card_swap
-        player.list_card.remove(card_action.card)
-        self.state.list_card_discard.append(card_action.card)
+        if card_action.card is not None:
+            player.list_card.remove(card_action.card)
+            self.state.list_card_discard.append(card_action.card)
 
         return swapped_action
 
 
-    def _apply_seven_kickout(self, action:Action):
+    def _apply_seven_kickout(self, action: Action) -> None:
         """Kickout marbles who are overrun by a 7"""
         pos_from = action.pos_from
         pos_to = action.pos_to
@@ -431,18 +432,19 @@ class Dog(Game):
                 }
             free_kennel_positions = list(all_kennel_positions - occupied_kennel_positions)
             for marble in one_player.list_marble:
-                if int(marble.pos) > pos_from and int(marble.pos) <= pos_to and not marble.is_save:
-                    # Assign a new position from the free kennel positions
-                    if free_kennel_positions:
-                        marble.pos = int(free_kennel_positions[0])
-                        marble.is_save = False
+                if pos_from is not None and pos_to is not None:
+                    if int(marble.pos) > pos_from and int(marble.pos) <= pos_to and not marble.is_save:
+                        # Assign a new position from the free kennel positions
+                        if free_kennel_positions:
+                            marble.pos = int(free_kennel_positions[0])
+                            marble.is_save = False
 
-    def get_into_endzone_actions(self, player: PlayerState) -> List[Action]:
-        actions: List[Action] = []
-        player = player.name
-        #TBD
+    # def get_into_endzone_actions(self, player: PlayerState) -> List[Action]:
+    #     actions: List[Action] = []
+    #     player_ = player.name
+    #     #TBD
 
-        return actions
+    #     return actions
 
     def get_jake_actions(self, player: PlayerState, card: Card) -> List[Action]:
         """Generate possible actions for using a Jake card"""
@@ -495,7 +497,7 @@ class Dog(Game):
                 if pos_to > 63:
                     continue
                 if GameState.is_valid_move(pos_to, player.list_marble):
-                    actions.append(Action(card=card, pos_from=marble.pos, pos_to=pos_to))
+                    actions.append(Action(card=card, pos_from=int(marble.pos), pos_to=pos_to))
 
         return actions
 
@@ -509,12 +511,12 @@ class Dog(Game):
             return
 
         # Handle Joker Swap separately
-        if action.card.rank == "JKR":
+        if action.card is not None and action.card.rank == "JKR":
             self._run_joker_swap(active_player, action)
             print("Joker card detected")
             return
 
-        if action.card.rank == "7":
+        if action.card is not None and action.card.rank == "7":
             self._apply_seven_kickout(action)
 
         if action.pos_from is None:
@@ -536,19 +538,33 @@ class Dog(Game):
             # Discard the card and advance the turn
             self._discard_card_and_advance(action, active_player)
 
+        active_player_index = self.state.idx_player_active-1
+        teammate_index = (active_player_index + 2) % len(self.state.list_player)
 
-    def _handle_fold_cards(self, active_player: Player) -> None:
+        active_player = self.state.list_player[active_player_index]
+        teammate = self.state.list_player[teammate_index]
+
+        active_endzone = Dog.ENDZONE[active_player.name]
+        active_all_in_endzone = all(int(marble.pos) in active_endzone for marble in active_player.list_marble)
+
+        teammate_endzone = Dog.ENDZONE[teammate.name]
+        teammate_all_in_endzone = all(int(marble.pos) in teammate_endzone for marble in teammate.list_marble)
+
+        if active_all_in_endzone and teammate_all_in_endzone:
+            self.state.phase = GamePhase.FINISHED
+
+    def _handle_fold_cards(self, active_player: PlayerState) -> None:
         """ Handle folding cards when action is None """
         if self._can_fold_cards(self.state.cnt_round, active_player):
             while active_player.list_card:
                 folded_card = active_player.list_card.pop(0)
                 self.state.list_card_discard.append(folded_card)
 
-    def _find_marble_to_move(self, player: Player, pos_from: int) -> Optional[Marble]:
+    def _find_marble_to_move(self, player: PlayerState, pos_from: int) -> Optional[Marble]:
         """ Find the marble to move based on the position """
         return next((m for m in player.list_marble if int(m.pos) == pos_from), None)
 
-    def _handle_action_with_card(self, player: Player, marble_to_move: Marble, action: Action) -> None:
+    def _handle_action_with_card(self, player: PlayerState, marble_to_move: Marble, action: Action) -> None:
         """ Handle the specific action when a card is involved """
         if action.card is not None:
             if action.card.rank == "J":
@@ -560,7 +576,7 @@ class Dog(Game):
             else:
                 self.move_marble_on_board(marble_to_move, action)
 
-    def _discard_card_and_advance(self, action: Action, active_player: Player) -> None:
+    def _discard_card_and_advance(self, action: Action, active_player: PlayerState) -> None:
         """ Discard the card and advance the turn """
         if action.card is not None:
             if action.card.rank == "7":
@@ -579,7 +595,7 @@ class Dog(Game):
             self.state.card_active = None
             self.state.idx_player_active = (self.state.idx_player_active + 1) % self.state.cnt_player
 
-    def _can_fold_cards(self, round_number, player):
+    def _can_fold_cards(self, round_number: int, player: PlayerState) -> bool:
         """ Determine if it is appropriate to fold cards based on game round and state """
         # Avoid folding if it's a round with specific card count requirements
         if round_number == 6 and len(player.list_card) == 6:
@@ -628,7 +644,9 @@ class Dog(Game):
         """ Move a marble on the board. """
         marble.pos = action.pos_to
         marble.is_save = False
-        Dog.SEVEN_STEPS_COUNTER += (action.pos_to - action.pos_from)
+
+        if action.pos_to is not None and action.pos_from is not None:
+            Dog.SEVEN_STEPS_COUNTER += (action.pos_to - action.pos_from)
 
     def apply_jake_action(self, player: PlayerState, action: Action) -> None:
         """ Apply a Jake card action to swap marbles. """
