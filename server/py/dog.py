@@ -372,6 +372,8 @@ class Dog(Game):
 
                 for step in possible_steps:
                     pos_to = pos_from + step
+                    if int(marble.pos) == Dog.START_POSITIONS[player.name]:
+                        marble.is_save = True
                     if pos_to > 63 or not marble.is_save:
                         continue
 
