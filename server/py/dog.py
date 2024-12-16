@@ -1,7 +1,3 @@
-#import sys
-#import os
-#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-
 from server.py.game import Game, Player
 from typing import List, Optional, ClassVar, cast, Union, Tuple
 from pydantic import BaseModel
