@@ -1,8 +1,8 @@
-from server.py.game import Game, Player
 from typing import List, Optional, ClassVar, cast, Union, Tuple
-from pydantic import BaseModel
 from enum import Enum
 import random
+from pydantic import BaseModel
+from server.py.game import Game, Player
 
 class Card(BaseModel):
     suit: str  # card suit (color)
