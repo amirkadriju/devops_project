@@ -1,40 +1,26 @@
-name: Deploy to Google Cloud using Workload Identity
-
+name: Code Style and Deploy
 on:
   push:
-    branches:
-      - main
-
+    branches: "main"
 jobs:
-  deploy:
-    name: Deploy to Google Cloud
-    runs-on: ubuntu-latest
-
+  deploy-to-gcloud:
     permissions:
       contents: "read"
       id-token: "write"
-
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Authenticate Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account: ${{secrets.GCP_SERVICE_ACCOUNT_EMAIL}}
+          project_id: ${{ secrets.PROJECT_ID }}
           workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_ID }}/locations/global/workloadIdentityPools/github/providers/my-repo"
-
       - name: Set up Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-
-      - name: Build and Deploy to Google Cloud Run
         run: |
-          gcloud builds submit --tag gcr.io/${{ secrets.GCP_PROJECT_ID }}/my-app .
-          gcloud run deploy my-app \
-            --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/my-app \
-            --platform managed \
-            --region europe-west6 \
-            --allow-unauthenticated
+          gcloud config set project ${{ secrets.PROJECT_ID }}
+          gcloud config set run/region europe-west6
+      - name: Build and Deploy to Cloud Run
+        run: |
+          gcloud run deploy game-server-service-from-github-action --port 8080 --source . --allow-unauthenticated
