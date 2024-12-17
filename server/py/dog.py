@@ -141,10 +141,10 @@ class Dog(Game):
         Dog.SEVEN_STEPS_COUNTER = 0
 
         # Setup the board with 95 places and initial marble positions
-        blue_marbles = [Marble(pos=str(i), is_save=False) for i in Dog.KENNEL["Blue"]]
-        green_marbles = [Marble(pos=str(i), is_save=False) for i in Dog.KENNEL["Green"]]
-        red_marbles = [Marble(pos=str(i), is_save=False) for i in Dog.KENNEL["Red"]]
-        yellow_marbles = [Marble(pos=str(i), is_save=False) for i in Dog.KENNEL["Yellow"]]
+        blue_marbles = [Marble(pos=i, is_save=False) for i in Dog.KENNEL["Blue"]]
+        green_marbles = [Marble(pos=i, is_save=False) for i in Dog.KENNEL["Green"]]
+        red_marbles = [Marble(pos=i, is_save=False) for i in Dog.KENNEL["Red"]]
+        yellow_marbles = [Marble(pos=i, is_save=False) for i in Dog.KENNEL["Yellow"]]
 
         # Initialize players
         self.state = GameState(
@@ -295,7 +295,7 @@ class Dog(Game):
             for card in player.list_card:
                 if card.rank in ["K", "A"]:
                     marbles_in_kennel = [
-                        marble for marble in player.list_marble if marble.pos in map(str, player_kennel)
+                        marble for marble in player.list_marble if marble.pos in map(int, player_kennel)
                     ]
                     if marbles_in_kennel:
                         actions.append(
@@ -307,7 +307,7 @@ class Dog(Game):
                         )
                 elif card.rank == "JKR":
                     marbles_in_kennel = [
-                        marble for marble in player.list_marble if marble.pos in map(str, player_kennel)
+                        marble for marble in player.list_marble if marble.pos in map(int, player_kennel)
                     ]
                     if marbles_in_kennel:
                         actions.append(
@@ -421,7 +421,7 @@ class Dog(Game):
 
         for one_player in self.state.list_player:
             player_kennel = Dog.KENNEL[one_player.name]
-            all_kennel_positions = set(map(str, player_kennel))  # Ensure all positions are strings
+            all_kennel_positions = set(map(int, player_kennel))  
             occupied_kennel_positions = {
                 marble.pos for marble in one_player.list_marble if marble.pos in all_kennel_positions
                 }
@@ -621,11 +621,10 @@ class Dog(Game):
         marble.pos = action.pos_to
         marble.is_save = True
 
-        def find_empty_kennel_position(opponent: PlayerState) -> Optional[str]:
+        def find_empty_kennel_position(opponent: PlayerState) -> Optional[int]:
             for position in Dog.KENNEL[opponent.name]:
-                pos_str = cast(str, position)
-                if not any(m.pos == pos_str for m in opponent.list_marble):
-                    return pos_str
+                if not any(m.pos == position for m in opponent.list_marble):
+                    return position
             return None
 
         # Check for an opponent's marble at the starting position
