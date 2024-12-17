@@ -11,30 +11,30 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      id-token: write # Required for Workload Identity Federation
-      contents: read
+      contents: "read"
+      id-token: "write"
 
     steps:
-      # Step 1: Checkout Code
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Step 2: Authenticate with Workload Identity Federation
-      - name: Authenticate to Google Cloud
+      - name: Authenticate Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: "projects/devops-team-3-430437/locations/global/workloadIdentityPools/github/providers/github"
-          service_account: "607947938232-compute@developer.gserviceaccount.com"
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_ID }}/locations/global/workloadIdentityPools/github/providers/my-repo"
 
-      # Step 3: Set up Google Cloud SDK
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      # Step 4: Deploy to Google Cloud
-      - name: Deploy to Cloud Run
+      - name: Build and Deploy to Google Cloud Run
         run: |
-          gcloud run deploy game-server-service-from-command-line \
-            --image europe-west6-docker.pkg.dev/devops-team-3-430437/cloud-run-source-deploy/game-server-service-from-command-line@sha256:a01f0a7eef3d208b102cc598c337e85b72b69089bf569eed6068578d1ae6d66e \
-            --region europe-west6 \
+          gcloud builds submit --tag gcr.io/${{ secrets.GCP_PROJECT_ID }}/my-app .
+          gcloud run deploy my-app \
+            --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/my-app \
             --platform managed \
+            --region europe-west6 \
             --allow-unauthenticated
