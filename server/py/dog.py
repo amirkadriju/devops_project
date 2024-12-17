@@ -1,8 +1,8 @@
-from server.py.game import Game, Player
-from typing import List, Optional, ClassVar, cast, Union, Tuple
-from pydantic import BaseModel
-from enum import Enum
 import random
+from enum import Enum
+from typing import List, Optional, ClassVar, Union, Tuple
+from pydantic import BaseModel
+from server.py.game import Game, Player
 
 class Card(BaseModel):
     suit: str  # card suit (color)
@@ -421,7 +421,7 @@ class Dog(Game):
 
         for one_player in self.state.list_player:
             player_kennel = Dog.KENNEL[one_player.name]
-            all_kennel_positions = set(map(int, player_kennel))  
+            all_kennel_positions = set(map(int, player_kennel))
             occupied_kennel_positions = {
                 marble.pos for marble in one_player.list_marble if marble.pos in all_kennel_positions
                 }
