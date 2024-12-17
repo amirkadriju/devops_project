@@ -1,17 +1,8 @@
-# runcmd: cd ../.. & venv\Scripts\python server/py/dog_template.py
-#import sys
-#import os
-#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-
-
-import random
-
-from typing import List, Optional, ClassVar, cast, Union, Tuple
-from enum import Enum
-from pydantic import BaseModel
-#from typing import cast
 from server.py.game import Game, Player
-
+from typing import List, Optional, ClassVar, cast, Union, Tuple
+from pydantic import BaseModel
+from enum import Enum
+import random
 
 class Card(BaseModel):
     suit: str  # card suit (color)
@@ -19,7 +10,7 @@ class Card(BaseModel):
 
 
 class Marble(BaseModel):
-    pos: str       # position on board (0 to 95)
+    pos: int       # position on board (0 to 95)
     is_save: bool  # true if marble was moved out of kennel and was not yet moved
 
 
@@ -372,6 +363,8 @@ class Dog(Game):
 
                 for step in possible_steps:
                     pos_to = pos_from + step
+                    if int(marble.pos) == Dog.START_POSITIONS[player.name]:
+                        marble.is_save = True
                     if pos_to > 63 or not marble.is_save:
                         continue
 
