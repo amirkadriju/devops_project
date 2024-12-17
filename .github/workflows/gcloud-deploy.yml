@@ -1,0 +1,40 @@
+name: Deploy to Google Cloud using Workload Identity
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to Google Cloud
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write # Required for Workload Identity Federation
+      contents: read
+
+    steps:
+      # Step 1: Checkout Code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Authenticate with Workload Identity Federation
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/devops-team-3-430437/locations/global/workloadIdentityPools/github/providers/github"
+          service_account: "607947938232-compute@developer.gserviceaccount.com"
+
+      # Step 3: Set up Google Cloud SDK
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # Step 4: Deploy to Google Cloud
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy game-server-service-from-command-line \
+            --image europe-west6-docker.pkg.dev/devops-team-3-430437/cloud-run-source-deploy/game-server-service-from-command-line@sha256:a01f0a7eef3d208b102cc598c337e85b72b69089bf569eed6068578d1ae6d66e \
+            --region europe-west6 \
+            --platform managed \
+            --allow-unauthenticated
