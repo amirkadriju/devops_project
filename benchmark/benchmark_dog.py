@@ -2194,4 +2194,4 @@ if __name__ == '__main__':
         benchmark.run_tests()
 
     else:  # Run specific test(s)
-        benchmark.test_chose_card_with_JOKER_1()
+        benchmark.test_send_home_with_simple_cards()

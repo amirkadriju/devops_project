@@ -83,8 +83,8 @@ class GameState(BaseModel):
     card_active: Optional[Card]        # active card (for 7 and JKR with sequence of actions)
 
     @staticmethod
-    def get_card_steps(rank: str) -> Union[int, Tuple[int, int]]:
-        rank_steps: dict[str, Union[int, Tuple[int,int]]] = {
+    def get_card_steps(rank: str) -> Union[int, Tuple[int, ...]]:
+        rank_steps: dict[str, Union[int, Tuple[int,...]]] = {
             '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '8': 8, '9': 9, '10': 10,
             '7': (1, 2, 3, 4, 5, 6, 7),
             'Q': 12,
@@ -500,7 +500,7 @@ class Dog(Game):
         """ Apply the given action to the game """
         active_player = self.state.list_player[self.state.idx_player_active]
 
-        if not self.state.bool_card_exchanged and Dog.EXCHANGE_COUNTER <= 4 and action:
+        if not self.state.bool_card_exchanged and Dog.EXCHANGE_COUNTER <= 4 and action and action.card:
             teammate = self.state.list_player[(self.state.idx_player_active + 2) % self.state.cnt_player]
             teammate.list_card.append(action.card)
             active_player.list_card.remove(action.card)
@@ -537,11 +537,12 @@ class Dog(Game):
             partner = self.state.list_player[idx_partner]
 
             if action.pos_from in [int(m.pos) for m in partner.list_marble]:
-                marble_to_move = next(m for m in partner.list_marble if int(m.pos) == action.pos_from)
+                marble_to_move = next((m for m in partner.list_marble if int(m.pos) == action.pos_from), None)
             else:
                 marble_to_move = self._find_marble_to_move(active_player, action.pos_from)
 
-            self._handle_action_with_card(active_player, marble_to_move, action)
+            if marble_to_move:
+                self._handle_action_with_card(active_player, marble_to_move, action)
 
             # Discard the card and advance the turn
             self._discard_card_and_advance(action, active_player)
@@ -618,13 +619,14 @@ class Dog(Game):
 
     def move_marble_to_start(self, player: PlayerState, marble: Marble, action: Action) -> None:
         """Move a marble out of the kennel to the starting position."""
-        marble.pos = action.pos_to
-        marble.is_save = True
+        if action.pos_to:
+            marble.pos = action.pos_to
+            marble.is_save = True
 
         def find_empty_kennel_position(opponent: PlayerState) -> Optional[int]:
             for position in Dog.KENNEL[opponent.name]:
                 if not any(m.pos == position for m in opponent.list_marble):
-                    return position
+                    return int(position)
             return None
 
         # Check for an opponent's marble at the starting position
@@ -644,13 +646,15 @@ class Dog(Game):
 
     def move_marble_to_finish(self, marble: Marble, action: Action) -> None:
         """ Move a marble into a finish position. """
-        marble.pos = action.pos_to
-        marble.is_save = True
+        if action.pos_to:
+            marble.pos = action.pos_to
+            marble.is_save = True
 
     def move_marble_on_board(self, marble: Marble, action: Action) -> None:
         """ Move a marble on the board. """
-        marble.pos = action.pos_to
-        marble.is_save = False
+        if action.pos_to:
+            marble.pos = action.pos_to
+            marble.is_save = False
 
         if action.pos_to is not None and action.pos_from is not None:
             Dog.SEVEN_STEPS_COUNTER += (action.pos_to - action.pos_from)
