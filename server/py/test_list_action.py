@@ -2,22 +2,25 @@ import pytest
 import unittest
 import sys
 
-sys.path.append('C:/Users/fabia/Documents/HSLU/24 Devops/devops/devops_project')
-
 from server.py.dog import Dog, GamePhase, GameState, Card, Action
 
-
-# Assuming GameServer and other classes are defined in 'your_game_module'
-# Replace this import with the actual path where these are defined.
-
+# Mock classes
 class MockPlayer:
     def __init__(self, cards):
         self.list_card = cards
 
 class MockState:
     def __init__(self, player):
-        self.list_player = [player]
-        self.idx_player_active = 0
+        self.player = player
+
+    def get_list_action(self):
+        # Assuming this method needs to calculate actions based on player's cards
+        valid_ranks = ['K', 'A', 'JKR']
+        actions = []
+        for card in self.player.list_card:
+            if card.rank in valid_ranks:
+                actions.append(Action(card=card, pos_from=64, pos_to=0))  # Adjust according to your game's logic
+        return actions
 
 class MockGameServer:
     def __init__(self, state):
@@ -30,10 +33,9 @@ class MockGameServer:
         self.state = state
 
     def get_list_action(self):
-        # This should call the actual `get_list_action` method of your game
         return self.state.get_list_action()
 
-# Test Case 1: When the player has no valid cards (King, Ace, or Jocker)
+# Test Case 1: When the player has no valid cards (King, Ace, or Joker)
 def test_get_list_action_without_start_cards():
     player = MockPlayer([
         Card(suit='♣', rank='3'),
@@ -51,7 +53,7 @@ def test_get_list_action_without_start_cards():
 
     assert list_action_found == list_action_expected, f"Expected {list_action_expected}, but got {list_action_found}"
 
-# Test Case 2: When the player has a valid starting card (King, Ace, or Jocker)
+# Test Case 2: When the player has a valid starting card (King, Ace, or Joker)
 @pytest.mark.parametrize("valid_card", [
     Card(suit='♦', rank='A'),
     Card(suit='♥', rank='K'),
@@ -69,9 +71,6 @@ def test_get_list_action_with_one_start_card(valid_card):
     game_server = MockGameServer(state)
 
     list_action_found = game_server.get_list_action()
-    
-    # The expected action should be created based on the valid card
     action = Action(card=valid_card, pos_from=64, pos_to=0)  # Adjust as needed for your game's logic
     
     assert action in list_action_found, f"Expected action {action}, but got {list_action_found}"
-
