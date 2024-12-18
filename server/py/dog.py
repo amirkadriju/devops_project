@@ -521,7 +521,6 @@ class Dog(Game):
         # Handle Joker Swap separately
         if action.card is not None and action.card.rank == "JKR":
             self._run_joker_swap(active_player, action)
-            print("Joker card detected")
             return
 
         if action.card is not None and action.card.rank == "7":
@@ -619,30 +618,32 @@ class Dog(Game):
 
     def move_marble_to_start(self, player: PlayerState, marble: Marble, action: Action) -> None:
         """Move a marble out of the kennel to the starting position."""
-        if action.pos_to:
-            marble.pos = action.pos_to
-            marble.is_save = True
+        if action.pos_to is None:
+            return
 
-        def find_empty_kennel_position(opponent: PlayerState) -> Optional[int]:
-            for position in Dog.KENNEL[opponent.name]:
-                if not any(m.pos == position for m in opponent.list_marble):
-                    return int(position)
-            return None
-
-        # Check for an opponent's marble at the starting position
+        # Move opponent marble back to the kennel if the starting position is occupied
         for opponent in self.state.list_player:
             if opponent == player:
-                continue
+                continue  # Skip active player's own marbles
 
-            opponent_marble = next(
-                (m for m in opponent.list_marble if m.pos == action.pos_to), None
-            )
-
+            opponent_marble = next((m for m in opponent.list_marble if int(m.pos) == action.pos_to), None)
             if opponent_marble:
-                empty_position = find_empty_kennel_position(opponent)
-                if empty_position:
-                    opponent_marble.pos = empty_position
-                    opponent_marble.is_save = False
+                self.send_opponent_marble_home(opponent, opponent_marble)
+
+        # Move active player's marble to the starting position
+        marble.pos = action.pos_to
+        marble.is_save = True  # Mark as moved out of the kennel
+
+
+    def send_opponent_marble_home(self, opponent: PlayerState, marble: Marble) -> None:
+        """Send an opponent's marble back to their kennel."""
+        player_kennel = Dog.KENNEL[opponent.name]
+        for kennel_position in player_kennel:
+            if not any(marble.pos == kennel_position for marble in opponent.list_marble):
+                marble.pos = kennel_position
+                marble.is_save = False  # Reset "saved" state
+                return
+
 
     def move_marble_to_finish(self, marble: Marble, action: Action) -> None:
         """ Move a marble into a finish position. """
