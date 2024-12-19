@@ -38,10 +38,10 @@ def test_dog_initialization():
 
     # Verify initial marble positions for each player
     positions = {
-        "Blue": ["64", "65", "66", "67"],
-        "Green": ["72", "73", "74", "75"],
-        "Red": ["80", "81", "82", "83"],
-        "Yellow": ["88", "89", "90", "91"]
+        "Blue": [64, 65, 66, 67],
+        "Green": [72, 73, 74, 75],
+        "Red": [80, 81, 82, 83],
+        "Yellow": [88, 89, 90, 91]
     }
 
     for player in game.state.list_player:
@@ -66,13 +66,52 @@ def test_apply_action():
         game.apply_action(actions[0])
         assert game.state.idx_player_active != initial_active_player, "Active player should change after applying an action."
 
+def test_get_partner_actions():
+    """Test actions for teammate's marbles when all player's marbles are in the finish zone."""
+    game = Dog()
+    player = game.state.list_player[game.state.idx_player_active]
+    
+    # Manually set all marbles to finish zone
+    for marble in player.list_marble:
+        marble.pos = Dog.ENDZONE[player.name][0]
 
-def test_exchange_cards():
-    """Test the card exchange functionality."""
+    actions = game.get_list_action()
+    assert actions, "There should be actions for the teammate's marbles when all active player's marbles are in the finish zone."
+
+def test_get_exchange_actions():
+    """Test the card exchange actions."""
     game = Dog()
     game.state.bool_card_exchanged = False
-    game.exchange_cards()
-    assert game.state.bool_card_exchanged, "Card exchange flag should be set to True after exchange."
+
+    actions = game.get_list_action()
+    assert all(action.pos_from is None and action.pos_to is None for action in actions), "All exchange actions should have no positions set."
+
+def test_kennel_exit_actions():
+    """Test kennel exit actions for 'K', 'A', and 'JKR' cards."""
+    game = Dog()
+    player = game.state.list_player[game.state.idx_player_active]
+    
+    # Add a 'K' and 'A' card to player's hand
+    player.list_card = [Card(suit="Hearts", rank="K"), Card(suit="Spades", rank="A")]
+
+    # Set a marble in the kennel
+    player.list_marble[0].pos = Dog.KENNEL[player.name][0]
+
+    actions = game.get_kennel_exit_actions(player)
+    assert len(actions) >= 1, "There should be at least one action to exit the kennel."
+
+def test_remove_duplicate_actions():
+    """Test duplicate actions are removed."""
+    game = Dog()
+    
+    # Mock duplicate actions
+    actions = [
+        Action(card=Card(suit="Hearts", rank="2"), pos_from=10, pos_to=12),
+        Action(card=Card(suit="Hearts", rank="2"), pos_from=10, pos_to=12),
+    ]
+
+    unique_actions = game._remove_duplicate_actions(actions)
+    assert len(unique_actions) == 1, "Duplicate actions should be removed."
 
 
 

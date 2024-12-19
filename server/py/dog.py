@@ -108,7 +108,7 @@ class GameState(BaseModel):
 
 class Dog(Game):
 
-    SEVEN_STEPS_COUNTER: ClassVar[int] = 0
+    SEVEN_STEPS_COUNTER: ClassVar[int] = 7
 
     EXCHANGE_COUNTER: ClassVar[int] = 0
 
@@ -174,6 +174,8 @@ class Dog(Game):
         self.state.phase = GamePhase.RUNNING
         self.state.cnt_round = 1
         self.state.idx_player_active = self.state.idx_player_started
+
+        self.original_state_before_7: Optional[GameState] = None
 
     def set_state(self, state: GameState) -> None:
         """ Set the game to a given state """
@@ -477,24 +479,42 @@ class Dog(Game):
         Generate all possible actions for a card with rank '7'.
         Distribute 7 movement points across the player's marbles.
         """
-        if card.rank != "7":
-            return []  # Only handle "7" cards
-        actions = []
+        actions: list = []
 
-        steps = GameState.get_card_steps(str(card.rank))
-        for marble in player.list_marble:
-            if marble.pos is None or not 0 <= int(marble.pos) <= 63:
-                continue
-            pos_from = int(marble.pos)
-            possible_steps = steps if isinstance(steps, tuple) else (steps,)
-            for step in possible_steps:
-                pos_to = pos_from + step
-                if pos_to > 63:
-                    continue
-                if GameState.is_valid_move(pos_to, player.list_marble):
-                    actions.append(Action(card=card, pos_from=int(marble.pos), pos_to=pos_to))
+        if not card:
+            return actions
+
+        for m, marble in enumerate(self.state.list_player[self.state.idx_player_active].list_marble):
+            if (marble.pos not in Dog.KENNEL[player.name] and marble.pos != Dog.ENDZONE[player.name]):
+                pos_from = marble.pos
+                for steps in range(1, Dog.SEVEN_STEPS_COUNTER +1):
+                    pos_to = pos_from + steps
+                    if pos_to > 63:
+                        continue
+                    if GameState.is_valid_move(pos_to, player.list_marble):
+                        if Dog.SEVEN_STEPS_COUNTER == 0:
+                            actions.append(Action(card=card, pos_from=pos_from, pos_to=pos_to))
 
         return actions
+
+        # if card.rank != "7":
+        #     return []  # Only handle "7" cards
+        # actions = []
+
+        # steps = GameState.get_card_steps(str(card.rank))
+        # for marble in player.list_marble:
+        #     if marble.pos is None or not 0 <= int(marble.pos) <= 63:
+        #         continue
+        #     pos_from = int(marble.pos)
+        #     possible_steps = steps if isinstance(steps, tuple) else (steps,)
+        #     for step in possible_steps:
+        #         pos_to = pos_from + step
+        #         if pos_to > 63:
+        #             continue
+        #         if GameState.is_valid_move(pos_to, player.list_marble):
+        #             actions.append(Action(card=card, pos_from=int(marble.pos), pos_to=pos_to))
+
+        # return actions
 
     def apply_action(self, action: Optional[Action]) -> None:
         """ Apply the given action to the game """
@@ -506,7 +526,6 @@ class Dog(Game):
             active_player.list_card.remove(action.card)
             Dog.EXCHANGE_COUNTER += 1
 
-
             if Dog.EXCHANGE_COUNTER == 4:
                 self.state.bool_card_exchanged = True
                 Dog.EXCHANGE_COUNTER = 0
@@ -514,6 +533,13 @@ class Dog(Game):
             return
 
         if action is None:
+            if self.state.card_active is not None and self.state.card_active.rank == "7" and \
+                Dog.SEVEN_STEPS_COUNTER > 0:
+                if self.original_state_before_7 is not None:
+                    self.state = self.original_state_before_7
+                self.original_state_before_7 = None
+                return
+
             self._handle_fold_cards(active_player)
             self._advance_turn()
             return
@@ -525,7 +551,9 @@ class Dog(Game):
             return
 
         if action.card is not None and action.card.rank == "7":
-            self._apply_seven_kickout(action)
+            # self._apply_seven_kickout(action)
+            self._handle_seven_action(action, active_player)
+            return
 
         if action.pos_from is None:
             # Handle card exchange
@@ -561,6 +589,63 @@ class Dog(Game):
 
         if active_all_in_endzone and teammate_all_in_endzone:
             self.state.phase = GamePhase.FINISHED
+
+    def _handle_seven_action(self, action: Action, active_player: PlayerState) -> None:
+        if self.state.card_active is None or Dog.SEVEN_STEPS_COUNTER == 7:
+            self.original_state_before_7 = self.state.model_copy(deep=True)
+            self.state.card_active = action.card
+            Dog.SEVEN_STEPS_COUNTER = 7
+
+        steps = self.calculate_steps_for_7(action.pos_from, action.pos_to)
+
+        marble_moved = False
+        for marble in active_player.list_marble:
+            if marble.pos == action.pos_from:
+                for step in range(1, steps + 1):
+                    temp_pos = (marble.pos + step) % 64
+                    self.send_home(temp_pos)
+
+                marble.pos = action.pos_to if action.pos_to is not None else 0
+                marble_moved = True
+                break
+
+        if not marble_moved:
+            raise ValueError("Error_JH")
+
+        Dog.SEVEN_STEPS_COUNTER -= steps
+
+        if Dog.SEVEN_STEPS_COUNTER == 0:
+            if action.card in active_player.list_card:
+                active_player.list_card.remove(action.card)
+                self.state.list_card_discard.append(action.card)
+
+            self.state.card_active = None
+            self.original_state_before_7 = None
+            self.state.idx_player_active = (self.state.idx_player_active + 1) % self.state.cnt_player
+
+    def send_home(self, pos: int) -> None:
+        for player in self.state.list_player:
+            for marble in player.list_marble:
+                if marble.pos == pos:
+                    marble.pos = self.KENNEL[player.name][0]
+                    marble.is_save = False
+
+    def calculate_steps_for_7(self, pos_from: int | None, pos_to: int | None) -> int:
+        """Calculate the number of steps for a 7 card move"""
+        if pos_from is None or pos_to is None:
+            raise ValueError("pos_from and pos_to must not be None")
+
+        if pos_from < 64 and pos_to < 64:
+            return (pos_to - pos_from + 64) % 64
+
+        if pos_from < 64 <= pos_to:
+            return int((pos_to - Dog.ENDZONE[self.state.idx_player_active][0] + 1) +
+                    (self.START_POSITIONS[self.state.idx_player_active] + 64 - pos_from)% 64)
+
+        if pos_from >= 64 and pos_to >= 64:
+            return abs(pos_to - pos_from)
+
+        return 0
 
     def _handle_fold_cards(self, active_player: PlayerState) -> None:
         """ Handle folding cards when action is None """
