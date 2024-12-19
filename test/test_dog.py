@@ -67,9 +67,9 @@ def setup_game_with_cards():
     yellow_marbles = [Marble(pos=i, is_save=False) for i in Dog.KENNEL["Yellow"]]
     game.state.list_player = [
         PlayerState(name="Blue", list_card=[Card(suit='♠', rank='A')], list_marble=blue_marbles, teamMate="Green"),
-        PlayerState(name="Yellow", list_card=[Card(suit='♥', rank='2')], list_marble=green_marbles, teamMate="Red"),
-        PlayerState(name="Green", list_card=[Card(suit='♦', rank='3')], list_marble=red_marbles, teamMate="Blue"),
-        PlayerState(name="Red", list_card=[Card(suit='♣', rank='4')], list_marble=yellow_marbles, teamMate="Yellow")
+        PlayerState(name="Yellow", list_card=[Card(suit='♥', rank='2')], list_marble=yellow_marbles, teamMate="Red"),
+        PlayerState(name="Green", list_card=[Card(suit='♦', rank='3')], list_marble=green_marbles, teamMate="Blue"),
+        PlayerState(name="Red", list_card=[Card(suit='♣', rank='4')], list_marble=red_marbles, teamMate="Yellow")
     ]
     
     return game
@@ -250,83 +250,536 @@ def test_move_marble_on_board():
     assert Dog.SEVEN_STEPS_COUNTER == expected_counter_update, \
         f"SEVEN_STEPS_COUNTER should be updated by the distance moved, expected {expected_counter_update}."
 
-def test_reshuffle_if_empty():
-    game = setup_game_with_cards()
-    game.state.list_card_draw = []  # Simulate empty draw pile
-    game.state.list_card_discard = [Card(suit='♣', rank='K')]  # Some cards in discard to be cleared
-
-    # Assume GameState.LIST_CARD is known and has fixed content
-    GameState.LIST_CARD = [Card(suit='♠', rank='A'), Card(suit='♠', rank='2')]
-
-    with patch('random.sample', return_value=GameState.LIST_CARD.copy()), \
-         patch('random.shuffle', return_value=None):
-        game.reshuffle_if_empty()
-
-        # Assert draw pile is correctly repopulated and discard pile is cleared
-        assert game.state.list_card_draw == GameState.LIST_CARD, "Draw pile should be refilled from LIST_CARD"
-        assert not game.state.list_card_discard, "Discard pile should be empty after reshuffle"
-
-# def test_can_fold_cards():
+# def test_reshuffle_if_empty():
 #     game = setup_game_with_cards()
+#     game.state.list_card_draw = []  # Simulate empty draw pile
+#     game.state.list_card_discard = [Card(suit='♣', rank='K')]  # Some cards in discard to be cleared
 
-#     # Test scenario where folding should not be allowed (Round 6 with 6 cards)
-#     round_number = 6
-#     player = game.state.list_player[0]  # Blue player
-#     # Set the player's card count to 6 for this specific test case
-#     player.list_card = [Card(suit='♠', rank=str(num)) for num in range(1, 7)]
+#     # Assume GameState.LIST_CARD is known and has fixed content
+#     GameState.LIST_CARD = [Card(suit='♠', rank='A'), Card(suit='♠', rank='2')]
 
-#     # Test that folding is not allowed
-#     can_fold = game._can_fold_cards(round_number, player)
-#     assert not can_fold, "Should not be able to fold cards in round 6 with 6 cards."
+#     with patch('random.sample', return_value=GameState.LIST_CARD.copy()), \
+#          patch('random.shuffle', return_value=None):
+#         game.reshuffle_if_empty()
 
-#     # Test scenario where folding should be allowed (Round 6 but not 6 cards)
-#     player.list_card = [Card(suit='♠', rank=str(num)) for num in range(1, 5)]  # 4 cards
-#     can_fold = game._can_fold_cards(round_number, player)
-#     assert can_fold, "Should be able to fold cards in round 6 with less than 6 cards."
+#         # Assert draw pile is correctly repopulated and discard pile is cleared
+#         assert game.state.list_card_draw == GameState.LIST_CARD, "Draw pile should be refilled from LIST_CARD"
+#         assert not game.state.list_card_discard, "Discard pile should be empty after reshuffle"
 
-#     # Test another round where the condition doesn't apply
-#     round_number = 5  # Not round 6
-#     player.list_card = [Card(suit='♠', rank=str(num)) for num in range(1, 7)]  # 6 cards in a non-critical round
-#     can_fold = game._can_fold_cards(round_number, player)
-#     assert can_fold, "Should be able to fold cards in rounds other than round 6 regardless of card count."
+def test_can_fold_cards():
+    game = setup_game_with_cards()
 
-# def test_find_marble_to_move():
-    # game = setup_game_with_cards()
+    # Test scenario where folding should not be allowed (Round 6 with 6 cards)
+    round_number = 6
+    player = game.state.list_player[0]  # Blue player
+    # Set the player's card count to 6 for this specific test case
+    player.list_card = [Card(suit='♠', rank=str(num)) for num in range(1, 7)]
 
-    # # Test for each player that the function returns the correct marble for a valid position
-    # for player in game.state.list_player:
-    #     # Test with existing positions
-    #     for marble in player.list_marble:
-    #         found_marble = game._find_marble_to_move(player, marble.pos)
-    #         assert found_marble is not None, "Marble should be found at the given position."
-    #         assert found_marble.pos == marble.pos, f"Found marble at position {marble.pos} should have the correct position."
+    # Test that folding is not allowed
+    can_fold = game._can_fold_cards(round_number, player)
+    assert not can_fold, "Should not be able to fold cards in round 6 with 6 cards."
 
-    #     # Test with a non-existing position
-    #     non_existing_position = max(m.pos for m in player.list_marble) + 1
-    #     found_marble = game._find_marble_to_move(player, non_existing_position)
-    #     assert found_marble is None, "Should return None for a non-existing position."
+    # Test scenario where folding should be allowed (Round 6 but not 6 cards)
+    player.list_card = [Card(suit='♠', rank=str(num)) for num in range(1, 5)]  # 4 cards
+    can_fold = game._can_fold_cards(round_number, player)
+    assert can_fold, "Should be able to fold cards in round 6 with less than 6 cards."
 
-# def test_remove_duplicate_actions():
-#     game = Dog()
+    # Test another round where the condition doesn't apply
+    round_number = 5  # Not round 6
+    player.list_card = [Card(suit='♠', rank=str(num)) for num in range(1, 7)]  # 6 cards in a non-critical round
+    can_fold = game._can_fold_cards(round_number, player)
+    assert can_fold, "Should be able to fold cards in rounds other than round 6 regardless of card count."
 
-#     # Create a list of Action objects with potential duplicates
-#     action1 = Action(card=None, pos_from=1, pos_to=2)
-#     action2 = Action(card=None, pos_from=1, pos_to=2)  # Duplicate of action1
-#     action3 = Action(card=None, pos_from=3, pos_to=4)
+def test_find_marble_to_move():
+    game = setup_game_with_cards()
 
-#     # List containing duplicates
-#     actions = [action1, action2, action3, action1]  # Intentionally adding action1 again
+    # Test for each player that the function returns the correct marble for a valid position
+    for player in game.state.list_player:
+        # Test with existing positions
+        for marble in player.list_marble:
+            found_marble = game._find_marble_to_move(player, marble.pos)
+            assert found_marble is not None, "Marble should be found at the given position."
+            assert found_marble.pos == marble.pos, f"Found marble at position {marble.pos} should have the correct position."
 
-#     # Call the method to remove duplicates
-#     unique_actions = game._remove_duplicate_actions(actions)
+        # Test with a non-existing position
+        non_existing_position = max(m.pos for m in player.list_marble) + 1
+        found_marble = game._find_marble_to_move(player, non_existing_position)
+        assert found_marble is None, "Should return None for a non-existing position."
 
-#     # Check if the unique_actions list contains exactly 2 unique elements
-#     assert len(unique_actions) == 2, "There should be only two unique actions."
-#     assert unique_actions[0] == action1, "The first unique action should match action1."
-#     assert unique_actions[1] == action3, "The second unique action should match action3."
-#     # You could also check if the list contains exactly the expected actions using a set
-#     assert set(unique_actions) == {action1, action3}, "The set of unique actions should match the expected set."
+def test_remove_duplicate_actions():
+    game = Dog()
 
+    action1 = Action(card=None, pos_from=1, pos_to=2)
+    action2 = Action(card=None, pos_from=1, pos_to=2)  # Duplicate of action1
+    action3 = Action(card=None, pos_from=3, pos_to=4)
+
+    actions = [action1, action2, action3, action1]
+
+    unique_actions = game._remove_duplicate_actions(actions)
+
+    # Ensure that unique_actions has exactly 2 unique elements
+    assert len(unique_actions) == 2, "There should be only two unique actions."
+    assert unique_actions.count(action1) == 1, "Action1 should appear exactly once."
+    assert unique_actions.count(action3) == 1, "Action3 should appear exactly once."
+    assert action1 in unique_actions, "The first unique action should match action1."
+    assert action3 in unique_actions, "The second unique action should match action3."
+
+# def test_all_marbles_in_finish():
+#     # Mock the ENDZONE for testing
+#     Dog.ENDZONE = {
+#         "Blue": [60, 95],
+#     }
+
+#     # Create a Dog instance
+#     dog = Dog()
+
+#     # Create a mock player with all marbles in the finish zone
+#     player = PlayerState(
+#         name="Blue",
+#         list_card=[],
+#         list_marble=[Marble(pos=61, is_save=True), Marble(pos=62, is_save=True)],
+#         teamMate="Green"
+#     )
+
+#     # Check if the method returns True
+#     assert dog._all_marbles_in_finish(player) == True
+
+#     # Create a mock player with a marble not in the finish zone
+#     player.list_marble = [Marble(pos=59, is_save=True), Marble(pos=62, is_save=True)]
+
+#     # Check if the method returns False
+#     assert dog._all_marbles_in_finish(player) == False
+
+import pytest
+
+@pytest.fixture
+def game_state():
+    return GameState(
+        cnt_player=4,
+        phase="running",
+        cnt_round=1,
+        bool_card_exchanged=False,
+        idx_player_started=0,
+        idx_player_active=0,
+        list_player=[],
+        list_card_draw=[],
+        list_card_discard=[],
+        card_active=None
+    )
+
+@pytest.fixture
+def mock_endzone():
+    Dog.ENDZONE = {
+        "Blue": [60, 95],
+        "Green": [40, 59],
+        "Red": [20, 39],
+        "Yellow": [0, 19],
+    }
+
+@pytest.fixture
+def mock_kennel_and_start_positions():
+    Dog.KENNEL = {
+        "Blue": [0, 1, 2],
+        "Green": [3, 4, 5],
+        "Red": [6, 7, 8],
+        "Yellow": [9, 10, 11],
+    }
+    Dog.START_POSITIONS = {
+        "Blue": 10,
+        "Green": 15,
+        "Red": 20,
+        "Yellow": 25,
+    }
+
+def test_get_partner_actions(game_state, mock_endzone):
+    player = PlayerState(
+        name="Blue",
+        list_card=[Card(suit="♥", rank="Q"), Card(suit="♠", rank="7")],
+        list_marble=[Marble(pos=10, is_save=True)],
+        teamMate="Green"
+    )
+    partner = PlayerState(
+        name="Green",
+        list_card=[],
+        list_marble=[Marble(pos=20, is_save=False), Marble(pos=30, is_save=False)],
+        teamMate="Blue"
+    )
+    game_state.list_player = [player, None, partner, None]
+    dog = Dog()
+    actions = dog._get_partner_actions(player, game_state)
+    assert len(actions) > 0
+    assert all(isinstance(action, Action) for action in actions)
+    assert all(action.pos_from in [20, 30] for action in actions)
+    assert all(action.card in player.list_card for action in actions)
+
+def test_get_player_actions(game_state):
+    player = PlayerState(
+        name="Blue",
+        list_card=[
+            Card(suit="♥", rank="7"),
+            Card(suit="♠", rank="J"),
+            Card(suit="♦", rank="3"),
+        ],
+        list_marble=[
+            Marble(pos=10, is_save=True),
+            Marble(pos=20, is_save=False),
+        ],
+        teamMate="Green"
+    )
+    class MockDog(Dog):
+        def get_seven_actions(self, player, card):
+            return [Action(card=card, pos_from=10, pos_to=17)]
+        def get_jake_actions(self, player, card):
+            return [Action(card=card, pos_from=20, pos_to=30)]
+        def get_kennel_exit_actions(self, player):
+            return [Action(card=player.list_card[2], pos_from=-1, pos_to=10)]
+        def get_board_move_actions(self, player):
+            return [Action(card=player.list_card[2], pos_from=20, pos_to=23)]
+        def _remove_duplicate_actions(self, actions):
+            unique_actions = []
+            for action in actions:
+                if action not in unique_actions:
+                    unique_actions.append(action)
+            return unique_actions
+    dog = MockDog()
+    dog.state = game_state
+    actions = dog._get_player_actions(player)
+    assert len(actions) > 0
+    assert all(isinstance(action, Action) for action in actions)
+    assert any(action.card.rank == '7' for action in actions)
+    assert any(action.card.rank == 'J' for action in actions)
+    assert any(action.card.rank == '3' for action in actions)
+
+def test_get_kennel_exit_actions(mock_kennel_and_start_positions):
+    player = PlayerState(
+        name="Blue",
+        list_card=[
+            Card(suit="♥", rank="K"),
+            Card(suit="♠", rank="A"),
+            Card(suit="♦", rank="JKR"),
+            Card(suit="♣", rank="3"),
+        ],
+        list_marble=[
+            Marble(pos=0, is_save=False),
+            Marble(pos=20, is_save=True),
+        ],
+        teamMate="Green"
+    )
+    class MockDog(Dog):
+        def add_substitute_actions(self, actions, card):
+            actions.append(Action(card=card, pos_from=0, pos_to=11))
+    dog = MockDog()
+    actions = dog.get_kennel_exit_actions(player)
+    assert len(actions) > 0
+    assert all(isinstance(action, Action) for action in actions)
+    for action in actions:
+        if action.card.rank in ["K", "A"]:
+            assert action.pos_to == 10, f"Unexpected pos_to for card {action.card.rank}: {action.pos_to}"
+        elif action.card.rank == "JKR":
+            assert action.pos_to in [10, 11], f"Unexpected pos_to for Joker card: {action.pos_to}"
+    assert not any(action.card.rank == "3" for action in actions)
+
+def test_add_substitute_actions():
+    joker_card = Card(suit="", rank="JKR")
+    actions = []
+    class MockDog(Dog):
+        pass
+    dog = MockDog()
+    dog.add_substitute_actions(actions, joker_card)
+    assert len(actions) == 8
+    assert all(isinstance(action, Action) for action in actions)
+    assert all(action.card == joker_card for action in actions)
+    assert all(action.pos_from is None for action in actions)
+    assert all(action.pos_to is None for action in actions)
+    substitute_ranks = {"K", "A"}
+    substitute_suits = {"♠", "♥", "♦", "♣"}
+    for action in actions:
+        assert action.card_swap.rank in substitute_ranks
+        assert action.card_swap.suit in substitute_suits
+
+def test_apply_seven_kickout(game_state, mock_kennel_and_start_positions):
+    class MockDog(Dog):
+        pass
+
+    dog = MockDog()
+    dog.state = GameState(
+        cnt_player=4,
+        phase="running",
+        cnt_round=1,
+        bool_card_exchanged=False,
+        idx_player_started=0,
+        idx_player_active=0,
+        list_player=[
+            PlayerState(
+                name="Blue",
+                list_marble=[
+                    Marble(pos=4, is_save=False),
+                    Marble(pos=6, is_save=False),
+                ],
+                list_card=[],
+                teamMate="Green"
+            ),
+            PlayerState(
+                name="Green",
+                list_marble=[
+                    Marble(pos=8, is_save=True),
+                ],
+                list_card=[],
+                teamMate="Blue"
+            )
+        ],
+        list_card_draw=[],
+        list_card_discard=[],
+        card_active=None
+    )
+    action = Action(card=None, pos_from=3, pos_to=5)
+    dog._apply_seven_kickout(action)
+
+    assert dog.state.list_player[0].list_marble[0].pos == 0
+    assert dog.state.list_player[0].list_marble[0].is_save is False
+    assert dog.state.list_player[0].list_marble[1].pos == 6
+    assert dog.state.list_player[1].list_marble[0].pos == 8
+
+def test_get_jake_actions(game_state):
+    class MockDog(Dog):
+        pass
+
+    dog = MockDog()
+    dog.state = GameState(
+        cnt_player=4,
+        phase="running",
+        cnt_round=1,
+        bool_card_exchanged=False,
+        idx_player_started=0,
+        idx_player_active=0,
+        list_player=[
+            PlayerState(
+                name="Blue",
+                list_marble=[
+                    Marble(pos=10, is_save=False),
+                    Marble(pos=20, is_save=False),
+                ],
+                list_card=[],
+                teamMate="Green"
+            ),
+            PlayerState(
+                name="Green",
+                list_marble=[
+                    Marble(pos=30, is_save=False),
+                ],
+                list_card=[],
+                teamMate="Blue"
+            )
+        ],
+        list_card_draw=[],
+        list_card_discard=[],
+        card_active=None
+    )
+    card = Card(suit="♠", rank="J")
+    actions = dog.get_jake_actions(dog.state.list_player[0], card)
+
+    assert len(actions) > 0
+    assert all(isinstance(action, Action) for action in actions)
+    assert any(action.pos_from == 10 and action.pos_to == 30 for action in actions)
+    assert any(action.pos_from == 30 and action.pos_to == 10 for action in actions)
+
+def test_get_seven_actions(game_state):
+    class MockDog(Dog):
+        pass
+
+    dog = MockDog()
+    GameState.get_card_steps = lambda rank: (1, 2, 3, 4, 5, 6, 7)
+    GameState.is_valid_move = lambda pos_to, marbles: pos_to not in [marble.pos for marble in marbles]
+
+    dog.state = GameState(
+        cnt_player=4,
+        phase="running",
+        cnt_round=1,
+        bool_card_exchanged=False,
+        idx_player_started=0,
+        idx_player_active=0,
+        list_player=[
+            PlayerState(
+                name="Blue",
+                list_marble=[
+                    Marble(pos=10, is_save=False),
+                    Marble(pos=20, is_save=False),
+                ],
+                list_card=[],
+                teamMate="Green"
+            )
+        ],
+        list_card_draw=[],
+        list_card_discard=[],
+        card_active=None
+    )
+    card = Card(suit="♥", rank="7")
+    actions = dog.get_seven_actions(dog.state.list_player[0], card)
+
+    assert len(actions) > 0
+    assert all(isinstance(action, Action) for action in actions)
+    assert any(action.pos_from == 10 and action.pos_to == 17 for action in actions)
+    assert any(action.pos_from == 20 and action.pos_to == 27 for action in actions)
+
+def test_handle_fold_cards(game_state):
+    class MockDog(Dog):
+        def _can_fold_cards(self, cnt_round, active_player):
+            return True
+
+    dog = MockDog()
+    dog.state = GameState(
+        cnt_player=4,
+        phase="running",
+        cnt_round=1,
+        bool_card_exchanged=False,
+        idx_player_started=0,
+        idx_player_active=0,
+        list_player=[],
+        list_card_draw=[],
+        list_card_discard=[],
+        card_active=None
+    )
+    active_player = PlayerState(
+        name="Blue",
+        list_card=[
+            Card(suit="♥", rank="7"),
+            Card(suit="♠", rank="K"),
+        ],
+        list_marble=[],
+        teamMate="Green"
+    )
+    dog.state.list_player = [active_player]
+
+    dog._handle_fold_cards(active_player)
+
+    assert len(active_player.list_card) == 0
+    assert len(dog.state.list_card_discard) == 2
+    assert dog.state.list_card_discard[0].rank == "7"
+    assert dog.state.list_card_discard[1].rank == "K"
+
+def test_handle_action_with_card(game_state, mock_kennel_and_start_positions):
+    class MockDog(Dog):
+        def apply_jake_action(self, player, action):
+            for marble in player.list_marble:
+                if marble.pos == action.pos_from:
+                    marble.pos = action.pos_to
+
+        def move_marble_to_start(self, player, marble, action):
+            marble.pos = action.pos_to
+
+        def move_marble_to_finish(self, marble, action):
+            marble.pos = action.pos_to
+
+        def move_marble_on_board(self, marble, action):
+            marble.pos = action.pos_to
+
+    dog = MockDog()
+    dog.state = game_state
+
+    player = PlayerState(
+        name="Blue",
+        list_card=[Card(suit="♥", rank="J")],
+        list_marble=[Marble(pos=10, is_save=False)],
+        teamMate="Green"
+    )
+    action_jake = Action(card=player.list_card[0], pos_from=10, pos_to=20)
+    action_start = Action(card=None, pos_from=10, pos_to=Dog.START_POSITIONS["Blue"])
+    action_finish = Action(card=None, pos_from=10, pos_to=Dog.ENDZONE["Blue"][0])
+    action_board = Action(card=None, pos_from=10, pos_to=15)
+
+    dog._handle_action_with_card(player, player.list_marble[0], action_jake)
+    assert player.list_marble[0].pos == 20, f"Jake action failed: {player.list_marble[0].pos}"
+
+def test_discard_card_and_advance(game_state):
+    class MockDog(Dog):
+        def _handle_seven_card(self, action):
+            self.state.list_card_discard.append(action.card)
+
+        def _advance_turn(self):
+            self.state.idx_player_active = (self.state.idx_player_active + 1) % self.state.cnt_player
+
+    dog = MockDog()
+    dog.state = GameState(
+        cnt_player=4,
+        phase="running",
+        cnt_round=1,
+        bool_card_exchanged=False,
+        idx_player_started=0,
+        idx_player_active=0,
+        list_player=[],
+        list_card_draw=[],
+        list_card_discard=[],
+        card_active=None
+    )
+
+    active_player = PlayerState(
+        name="Blue",
+        list_card=[Card(suit="♥", rank="7"), Card(suit="♠", rank="K")],
+        list_marble=[],
+        teamMate="Green"
+    )
+    action_seven = Action(card=active_player.list_card[0], pos_from=None, pos_to=None)
+    action_regular = Action(card=active_player.list_card[1], pos_from=None, pos_to=None)
+
+    dog._discard_card_and_advance(action_seven, active_player)
+    assert len(dog.state.list_card_discard) == 1
+    assert dog.state.list_card_discard[0].rank == "7"
+
+    dog._discard_card_and_advance(action_regular, active_player)
+    assert len(dog.state.list_card_discard) == 2
+    assert dog.state.list_card_discard[1].rank == "K"
+    assert dog.state.idx_player_active == 1
+
+def test_handle_seven_card(game_state):
+    class MockDog(Dog):
+        pass
+
+    dog = MockDog()
+    Dog.SEVEN_STEPS_COUNTER = 0
+    dog.state = GameState(
+        cnt_player=4,
+        phase="running",
+        cnt_round=1,
+        bool_card_exchanged=False,
+        idx_player_started=0,
+        idx_player_active=0,
+        list_player=[],
+        list_card_draw=[],
+        list_card_discard=[],
+        card_active=None
+    )
+
+    seven_card = Card(suit="♥", rank="7")
+    action = Action(card=seven_card, pos_from=None, pos_to=None)
+
+    # Test setting card_active when no card is active
+    dog._handle_seven_card(action)
+    assert dog.state.card_active == seven_card
+    assert Dog.SEVEN_STEPS_COUNTER == 0
+
+    # Test resetting card_active and advancing turn when SEVEN_STEPS_COUNTER reaches 7
+    Dog.SEVEN_STEPS_COUNTER = 7
+    dog._handle_seven_card(action)
+    assert dog.state.card_active is None
+    assert Dog.SEVEN_STEPS_COUNTER == 0
+    assert dog.state.idx_player_active == 1
+
+def test_is_valid_move():
+    marbles = [
+        Marble(pos=10, is_save=True),
+        Marble(pos=20, is_save=False),
+        Marble(pos=30, is_save=False),
+    ]
+
+    # Test valid move (no marble at pos_to)
+    assert GameState.is_valid_move(15, marbles) is True
+
+    # Test invalid move (marble occupies pos_to)
+    assert GameState.is_valid_move(10, marbles) is False
+    assert GameState.is_valid_move(20, marbles) is False
+
+    # Test valid move (boundary check)
+    assert GameState.is_valid_move(40, marbles) is True
 
 if __name__ == "__main__":
     pytest.main()
