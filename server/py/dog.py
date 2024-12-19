@@ -105,7 +105,7 @@ class GameState(BaseModel):
 
         return True
 
-
+# pylint: disable=too-many-public-methods
 class Dog(Game):
 
     SEVEN_STEPS_COUNTER: ClassVar[int] = 7
@@ -415,34 +415,6 @@ class Dog(Game):
 
         return swapped_action
 
-
-    def _apply_seven_kickout(self, action: Action) -> None:
-        """Kickout marbles who are overrun by a 7"""
-        pos_from = action.pos_from
-        pos_to = action.pos_to
-
-        for one_player in self.state.list_player:
-            player_kennel = Dog.KENNEL[one_player.name]
-            all_kennel_positions = set(map(int, player_kennel))
-            occupied_kennel_positions = {
-                marble.pos for marble in one_player.list_marble if marble.pos in all_kennel_positions
-                }
-            free_kennel_positions = list(all_kennel_positions - occupied_kennel_positions)
-            for marble in one_player.list_marble:
-                if pos_from is not None and pos_to is not None:
-                    if int(marble.pos) > pos_from and int(marble.pos) <= pos_to and not marble.is_save:
-                        # Assign a new position from the free kennel positions
-                        if free_kennel_positions:
-                            marble.pos = int(free_kennel_positions[0])
-                            marble.is_save = False
-
-    # def get_into_endzone_actions(self, player: PlayerState) -> List[Action]:
-    #     actions: List[Action] = []
-    #     player_ = player.name
-    #     #TBD
-
-    #     return actions
-
     def get_jake_actions(self, player: PlayerState, card: Card) -> List[Action]:
         """Generate possible actions for using a Jake card"""
         actions = []
@@ -484,7 +456,7 @@ class Dog(Game):
         if not card:
             return actions
 
-        for m, marble in enumerate(self.state.list_player[self.state.idx_player_active].list_marble):
+        for marble in self.state.list_player[self.state.idx_player_active].list_marble:
             if (marble.pos not in Dog.KENNEL[player.name] and marble.pos != Dog.ENDZONE[player.name]):
                 pos_from = marble.pos
                 for steps in range(1, Dog.SEVEN_STEPS_COUNTER +1):
@@ -516,6 +488,7 @@ class Dog(Game):
 
         # return actions
 
+    # pylint: disable=too-many-branches
     def apply_action(self, action: Optional[Action]) -> None:
         """ Apply the given action to the game """
         active_player = self.state.list_player[self.state.idx_player_active]
@@ -540,7 +513,10 @@ class Dog(Game):
                 self.original_state_before_7 = None
                 return
 
-            self._handle_fold_cards(active_player)
+            if self._can_fold_cards(self.state.cnt_round, active_player):
+                while active_player.list_card:
+                    folded_card = active_player.list_card.pop(0)
+                    self.state.list_card_discard.append(folded_card)
             self._advance_turn()
             return
 
@@ -550,7 +526,6 @@ class Dog(Game):
             return
 
         if action.card is not None and action.card.rank == "7":
-            # self._apply_seven_kickout(action)
             self._handle_seven_action(action, active_player)
             return
 
@@ -645,13 +620,6 @@ class Dog(Game):
             return abs(pos_to - pos_from)
 
         return 0
-
-    def _handle_fold_cards(self, active_player: PlayerState) -> None:
-        """ Handle folding cards when action is None """
-        if self._can_fold_cards(self.state.cnt_round, active_player):
-            while active_player.list_card:
-                folded_card = active_player.list_card.pop(0)
-                self.state.list_card_discard.append(folded_card)
 
     def _find_marble_to_move(self, player: PlayerState, pos_from: int) -> Optional[Marble]:
         """ Find the marble to move based on the position """
