@@ -268,7 +268,6 @@ class Dog(Game):
                 if self.state.card_active is None:
                     actions.extend(self.get_kennel_exit_actions(player))
                     actions.extend(self.get_board_move_actions(player))
-                    #actions.extend(self.get_into_endzone_actions(player))
 
         return self._remove_duplicate_actions(actions)
 
@@ -279,8 +278,6 @@ class Dog(Game):
             if action not in unique_actions:
                 unique_actions.append(action)
         return unique_actions
-
-
 
     def get_kennel_exit_actions(self, player: PlayerState) -> List[Action]:
         """ Generate actions to move marbles out of the kennel. """
@@ -570,7 +567,7 @@ class Dog(Game):
             self.state.card_active = action.card
             Dog.SEVEN_STEPS_COUNTER = 7
 
-        steps = self.calculate_steps_for_7(action.pos_from, action.pos_to)
+        steps = self.calculate_steps_for_7(action.pos_from, action.pos_to, active_player)
 
         marble_moved = False
         for marble in active_player.list_marble:
@@ -604,7 +601,7 @@ class Dog(Game):
                     marble.pos = self.KENNEL[player.name][0]
                     marble.is_save = False
 
-    def calculate_steps_for_7(self, pos_from: int | None, pos_to: int | None) -> int:
+    def calculate_steps_for_7(self, pos_from: int | None, pos_to: int | None, active_player: PlayerState) -> int:
         """Calculate the number of steps for a 7 card move"""
         if pos_from is None or pos_to is None:
             raise ValueError("pos_from and pos_to must not be None")
@@ -613,8 +610,8 @@ class Dog(Game):
             return (pos_to - pos_from + 64) % 64
 
         if pos_from < 64 <= pos_to:
-            return int((pos_to - Dog.ENDZONE[self.state.idx_player_active][0] + 1) +
-                    (self.START_POSITIONS[self.state.idx_player_active] + 64 - pos_from)% 64)
+            return int((pos_to - Dog.ENDZONE[active_player.name][0] + 1) +
+                    (self.START_POSITIONS[active_player.name] + 64 - pos_from)% 64)
 
         if pos_from >= 64 and pos_to >= 64:
             return abs(pos_to - pos_from)
