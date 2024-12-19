@@ -14,12 +14,12 @@ jobs:
       - name: Authenticate Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          service_account: ${{secrets.GCP_SERVICE_ACCOUNT_EMAIL}}
-          project_id: ${{ secrets.PROJECT_ID }}
-          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_ID }}/locations/global/workloadIdentityPools/github/providers/my-repo"
+          service_account: "607947938232-compute@developer.gserviceaccount.com"
+          project_id: devops-team-3-430437
+          workload_identity_provider: "projects/devops-team-3-430437/locations/global/workloadIdentityPools/github/providers/my-repo"
       - name: Set up Google Cloud SDK
         run: |
-          gcloud config set project ${{ secrets.PROJECT_ID }}
+          gcloud config set project devops-team-3-430437
           gcloud config set run/region europe-west6
       - name: Build and Deploy to Cloud Run
         run: |
