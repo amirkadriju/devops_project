@@ -342,6 +342,8 @@ class Dog(Game):
         valid_ranks = ["2", "3", "4", "5", "6", "8", "9", "10", "Q"]
         other_ranks = ["J", "K", "A", "7"]
 
+        actions.extend(self._get_into_endzone_actions(player))
+        actions.extend(self._move_inside_endzone_actions(player))
         for card in player.list_card:
             if card.rank not in valid_ranks and card.rank != "JKR":
                 continue
@@ -411,6 +413,79 @@ class Dog(Game):
             self.state.list_card_discard.append(card_action.card)
 
         return swapped_action
+
+    def _get_into_endzone_actions(self, player: PlayerState) -> List[Action]:
+        actions: List[Action] = []
+        taken_positions = {marble.pos for marble in player.list_marble if marble.pos in Dog.ENDZONE[player.name]}
+        available_positions = [pos for pos in Dog.ENDZONE[player.name] if pos not in taken_positions]
+        available_indices = [pos - Dog.ENDZONE[player.name][0] + 1 for pos in available_positions]
+        start_save_blocked = any(marble.pos == Dog.START_POSITIONS[player.name] and marble.is_save
+                                 for marble in player.list_marble)
+
+        for marble in player.list_marble:
+            pos_from = marble.pos
+            if not marble.is_save and pos_from < 64 and not start_save_blocked:
+                if player.name == "Blue":
+                    if pos_from == 0:
+                        steps_until_ez = available_indices
+                    else:
+                        steps_until_ez = [63 - pos_from + 1 + pos for pos in available_indices]
+                else:
+                    steps_until_ez = [Dog.START_POSITIONS[player.name] - pos_from + pos for pos in available_indices]
+
+                for card in player.list_card:
+                    if card.rank != "7":
+                        actions.extend(self._get_card_actions(card, pos_from, steps_until_ez, available_positions))
+
+        return actions
+
+    def _get_card_actions(self, card: Card, pos_from: int, steps_until_ez: List[int],
+                          available_positions: List[int]) -> List[Action]:
+        endzone_actions: List[Action] = []
+        card_steps = GameState.get_card_steps(card.rank)
+        possible_steps = card_steps if isinstance(card_steps, tuple) else (card_steps,)
+
+        for step in possible_steps:
+            for idx, pos in enumerate(available_positions):
+                if step == steps_until_ez[idx] and step != 0:
+                    endzone_actions.append(Action(card=card, pos_from=pos_from, pos_to=pos))
+
+        return endzone_actions
+
+    def _move_inside_endzone_actions(self, player: PlayerState) -> List[Action]:
+        actions: List[Action] = []
+        endzone_positions = Dog.ENDZONE[player.name]
+        #taken_positions = {marble.pos for marble in player.list_marble if marble.pos in endzone_positions}
+
+        for marble in player.list_marble:
+            pos_from = marble.pos
+            if not self._is_marble_in_endzone(pos_from, endzone_positions):
+                continue
+
+            max_steps = max(endzone_positions) - pos_from
+            self._add_actions_for_possibl_steps(actions, player, pos_from, max_steps)
+
+        return actions
+
+    def _is_marble_in_endzone(self, pos_from: int, endzone_positions: List[int]) -> bool:
+        """Helper function to check if the marble is in the endzone."""
+        return pos_from in endzone_positions
+
+    def _add_actions_for_possibl_steps(self, actions: List[Action], player: PlayerState,
+                                       pos_from: int, max_steps: int) -> None:
+        """Helper function to add actions for valid moves."""
+        endzone_positions = Dog.ENDZONE[player.name]
+        taken_positions = {marble.pos for marble in player.list_marble if marble.pos in endzone_positions}
+        for card in player.list_card:
+            if card.rank != "7":
+                card_steps = GameState.get_card_steps(card.rank)
+                possible_steps = card_steps if isinstance(card_steps, tuple) else (card_steps,)
+
+                for step in possible_steps:
+                    if step <= max_steps:
+                        target_position = pos_from + step
+                        if target_position not in taken_positions:
+                            actions.append(Action(card=card, pos_from=pos_from, pos_to=target_position))
 
     def get_jake_actions(self, player: PlayerState, card: Card) -> List[Action]:
         """Generate possible actions for using a Jake card"""
